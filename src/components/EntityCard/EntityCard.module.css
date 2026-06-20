@@ -1,72 +1,138 @@
 .creditCustomerCard {
-  background: var(--surface);
-  min-height: 340px;
+  background: linear-gradient(180deg, var(--surface), var(--surface));
+  min-height: 300px;
   display: flex;
   flex-direction: column;
   border-radius: 25px;
-  box-shadow: var(--shadow-1);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-2);
   overflow: hidden;
+  isolation: isolate;
 }
 
 .creditCustomerMedia {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 160px;
-  background: var(--surface-muted);
+  height: 148px;
+  background: linear-gradient(180deg, var(--surface-muted), transparent);
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
 }
 
 .creditCustomerAvatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 16px;
-  background: rgba(246, 196, 15, 0.2);
+  width: 84px;
+  height: 84px;
+  border-radius: 24px;
+  background: var(--highlight-secondary);
+  border: 1px solid var(--border-default);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow-1);
 }
 
 .creditCustomerMeta {
-  margin-top: 12px;
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
 }
 
-.creditCustomerCard .body {
-  padding: 18px 20px 24px 20px;
+.creditCustomerBody {
+  padding: 18px 18px 20px 18px;
+  margin: -18px 14px 14px;
   display: flex;
   flex-direction: column;
   flex: 1;
+  background: var(--surface);
+  border-radius: 22px;
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-1);
+  position: relative;
+  z-index: 1;
 }
 
-.creditCustomerCard .nameRow {
-  margin-bottom: 2px;
+.creditCustomerHeader {
+  margin-bottom: 4px;
 }
 
 .creditCustomerCard .name {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .creditCustomerCard .category {
   display: inline-flex;
-  padding: 4px 12px;
+  width: fit-content;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: var(--surface-muted);
+  background: var(--highlight-secondary);
   border: 1px solid var(--border-default);
-  color: var(--text-muted);
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.12em;
   margin-top: 6px;
   margin-bottom: 2px;
+}
+
+.creditCustomerInitials {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+}
+
+.creditCustomerMetaItem {
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-default);
+}
+
+.creditCustomerMetaIconWrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-default);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.creditCustomerMetaContent {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.creditCustomerMetaLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.creditCustomerMetaValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
 }
 .card {
   position: relative;
@@ -87,7 +153,7 @@
 
 .media {
   position: relative;
-  height: 200px;
+  height: 150px;
   background: var(--surface-muted);
   overflow: hidden;
   border-top-left-radius: 25px;
@@ -100,7 +166,7 @@
 
 .EntityCard {
   background: var(--surface);
-  height: 500px;
+  height: 350px;
 }
 
 .supplierMedia {
@@ -123,7 +189,7 @@
   width: 64px;
   height: 64px;
   border-radius: 14px;
-  background: rgba(246, 196, 15, 0.2); /* var(--highlight-primary) com alpha */
+  background: var(--highlight-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -135,25 +201,25 @@
   height: 100px;
   margin: 0;
   border-radius: 16px;
-  background: rgba(246, 196, 15, 0.2) !important;
+  background: var(--highlight-secondary) !important;
 }
 
 .productAvatar {
-  width: 100px;
-  height: 100px;
+  width: 80px;
+  height: 80px;
   margin: 0;
   border-radius: 16px;
   background: var(--highlight-secondary);
 }
 
 .avatarText {
-  font-size: 50px;
+  font-size: 40px;
   font-weight: 600;
   color: var(--highlight-primary);
 }
 
 .productIcon {
-  font-size: 48px;
+  font-size: 40px;
   color: var(--highlight-primary);
   display: inline-flex;
 }
@@ -236,6 +302,31 @@
   pointer-events: auto;
 }
 
+.creditCustomerCard .iconBtnEdit {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  top: 18px;
+  right: 18px;
+  bottom: auto;
+  width: 36px;
+  height: 36px;
+  background: var(--surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-1);
+}
+
+.creditCustomerCard:hover .iconBtnEdit {
+  transform: none;
+}
+
+.creditCustomerCard .iconBtnEdit:hover {
+  background: var(--highlight-secondary);
+  color: var(--text-primary);
+  transform: scale(1.04);
+}
+
 .card:hover .iconBtnEdit:hover {
   transform: scale(1.05);
 }
@@ -298,9 +389,9 @@
   left: 10px;
   color: #f59e11;
   border: 1px solid #f59e11;
-  padding: 7px 13px;
+  padding: 5px 10px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.08em;
   margin-top: 12px;
@@ -474,7 +565,7 @@
   height: 14px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  border: 1.5px solid var(--border-default);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
@@ -486,8 +577,8 @@
   height: 32px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.9);
-  color: #333;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -559,7 +650,7 @@
   padding: 0;
   font-weight: 500;
   font-size: 13px;
-  color: #444;
+  color: var(--text-secondary);
   gap: 6px;
 }
 
@@ -570,7 +661,7 @@
 
 .variationToggleLabel {
   font-weight: 600;
-  color: #000;
+  color: var(--text-primary);
 }
 
 :global([data-theme="dark"]) .variationToggleLabel {
@@ -613,7 +704,7 @@
 .variationCard {
   display: flex;
   flex-direction: column;
-  background: #f8f8f8;
+  background: var(--surface-muted);
   border-radius: 10px;
   padding: 8px 12px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
@@ -629,7 +720,7 @@
 .variationLabel {
   font-weight: 600;
   font-size: 13px;
-  color: #222;
+  color: var(--text-primary);
 }
 
 .variationValue {
@@ -639,7 +730,7 @@
 .variationStock {
   font-weight: 500;
   font-size: 12px;
-  color: #444;
+  color: var(--text-secondary);
 }
 
 .variationColors {
@@ -653,7 +744,7 @@
   height: 16px;
   border-radius: 50%;
   display: inline-block;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-default);
 }
 
 .productDetails {
@@ -661,7 +752,7 @@
   flex-direction: column;
   gap: 6px;
   margin-top: 4px;
-  background: #f8f8f8;
+  background: var(--surface-muted);
   border-radius: 10px;
   padding: 10px 12px;
 }
@@ -679,7 +770,7 @@
 .detailLabel {
   font-weight: 600;
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 :global([data-theme="dark"]) .detailLabel {
@@ -689,10 +780,9 @@
 .detailValue {
   font-weight: 500;
   font-size: 13px;
-  color: #222;
+  color: var(--text-primary);
 }
 
 :global([data-theme="dark"]) .detailValue {
   color: var(--text-primary);
 }
-

@@ -1,6 +1,5 @@
 export interface MessageRequestDto {
   productId: string;
-  companyId: string;
   name: string;
   url: string | string[];
   description: string;

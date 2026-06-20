@@ -1,5 +1,6 @@
 import type { UserTypeEnum } from "../dtos/enums/user-type.enum";
 import type { LoginRequestDto } from "../dtos/request/login-request.dto";
+import type { UpdatePasswordRequestDto } from "../dtos/request/update-password-request.dto";
 import type { UserRequestDto } from "../dtos/request/user-request.dto";
 import type { VerifyCoderequestDto } from "../dtos/request/verification-code-request.dto";
 import type { LoginResponseDto } from "../dtos/response/login-response.dto";
@@ -29,6 +30,17 @@ export const UserService = {
     const response = await api.put(`/users/${id}`, dto);
     return response.data;
   },
+
+  updatePassword: async (id: string, dto: UpdatePasswordRequestDto) => {
+    const response = await api.post(`/users/${id}/update-password`, dto);
+    return response.data;
+  },
+
+  remove: async (id: string): Promise<string> => {
+    const response = await api.delete<string>(`/users/${id}`);
+    return response.data;
+  },
+
   verifyEmail: async (dto: LoginRequestDto): Promise<{ companyId: string }> => {
     const response = await api.post("/users/verify-email", dto);
     return response.data;
@@ -59,8 +71,8 @@ export const UserService = {
     return response.data;
   },
 
-  findAll: async (companyId: string): Promise<UserProfileResponse[]> => {
-    const response = await api.get<UserProfileResponse[]>(`/users/find-all/${companyId}`);
+  findAll: async (): Promise<UserProfileResponse[]> => {
+    const response = await api.get<UserProfileResponse[]>("/users/find-all");
     return response.data;
   },
 };

@@ -1,13 +1,12 @@
 export interface ProductVariationRequestDto {
-  name: string;
-  companyId: string;
+  name?: string;
   price?: number;
   stock: number;
   isActive?: boolean;
-  activeLowStock: boolean;
+  activeLowStock?: boolean;
   color: string;
   size: string;
   images?: File[];
-  imageUrl?: string[];
-  lowStock: number;
+  imageUrl?: string;
+  lowStock?: number;
 }

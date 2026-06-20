@@ -14,13 +14,16 @@ import { FilterModal } from "../../components/FilterModal/FilterModal";
 import { Plus } from "lucide-react";
 import type { CategoryKey } from "../../types/Product-type";
 import { ProductService } from "../../service/Product.service";
-import { useMessageContext } from "../../contexts/MessageContext";
 import type { ProductResponse } from "../../dtos/response/product-response.dto";
 import { ProductCategoryEnum } from "../../dtos/enums/product-category.enum";
 import { useLocation, useNavigate } from "react-router-dom";
 import StatCard from "../../components/StatCard/StatCard";
 import { CustomSelect } from "../../components/CustomSelect/CustomSelect";
-import { useAuth } from "../../contexts/useAuth";
+import {
+  getLowStockEntries,
+  productHasAvailableStock,
+  productHasVariations,
+} from "../../utils/productStock";
 
 type SortOption = "price-asc" | "price-desc" | "name-asc" | null;
 
@@ -36,8 +39,6 @@ export function Products() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
-  const companyId = user?.companyId;
 
   // alert(JSON.stringify(user?.userType))
   // Seta o id do produto no input de busca se vier via state
@@ -96,16 +97,7 @@ export function Products() {
   };
 
   const filtered = useMemo(() => {
-    let current = products.filter((p) => {
-      // Produto principal tem estoque
-      if (Number(p.stock) > 0) return true;
-      // Alguma variação tem estoque
-      if (Array.isArray(p.variations)) {
-        return p.variations.some((v) => Number(v.stock) > 0);
-      }
-      // Nenhum estoque
-      return false;
-    });
+    let current = products.filter(productHasAvailableStock);
 
     // Filtro de categoria (select ou modal)
     const categoryToFilter =
@@ -162,18 +154,13 @@ export function Products() {
 
 
   const counts = useMemo(() => {
-    const hasStock = (p: ProductResponse) => {
-      if (Number(p.stock) > 0) return true;
-      if (Array.isArray(p.variations)) {
-        return p.variations.some((v) => Number(v.stock) > 0);
-      }
-      return false;
-    };
     const countBy = (category: ProductCategoryEnum) =>
-      products.filter((p) => hasStock(p) && p.category === category).length;
+      products.filter(
+        (p) => productHasAvailableStock(p) && p.category === category,
+      ).length;
 
     return {
-      all: products.filter((p) => hasStock(p)).length,
+      all: products.filter(productHasAvailableStock).length,
       shirt: countBy(ProductCategoryEnum.SHIRT),
       tshirt: countBy(ProductCategoryEnum.TSHIRT),
       polo: countBy(ProductCategoryEnum.POLO),
@@ -219,36 +206,37 @@ export function Products() {
 
   const totalValue = useMemo(() => {
     return products.reduce((sum, p) => {
-      let acc = sum;
+      if (productHasVariations(p)) {
+        return (
+          sum +
+          (p.variations ?? []).reduce((variationSum, variation) => {
+            if (
+              variation.isActive !== false &&
+              Number(variation.stock) > 0
+            ) {
+              return variationSum + Number(variation.price || 0);
+            }
+            return variationSum;
+          }, 0)
+        );
+      }
+
       if (Number(p.stock) > 0) {
-        acc += Number(p.price || 0);
+        return sum + Number(p.price || 0);
       }
-      if (Array.isArray(p.variations)) {
-        acc += p.variations.reduce((vSum, v) => {
-          if (Number(v.stock) > 0) {
-            return vSum + Number(v.price || 0);
-          }
-          return vSum;
-        }, 0);
-      }
-      return acc;
+
+      return sum;
     }, 0);
   }, [products]);
 
-  const lowStock = useMemo(() => {
-    let count = 0;
-    for (const p of products) {
-      if (Number(p.stock) > 0 && (p.stock ?? 0) <= p.lowStock) {
-        count++;
-      }
-      if (Array.isArray(p.variations)) {
-        count += p.variations.filter(
-          (v) => Number(v.stock) > 0 && Number(v.stock) <= (p.lowStock ?? 0)
-        ).length;
-      }
-    }
-    return count;
-  }, [products]);
+  const lowStock = useMemo(
+    () =>
+      products.reduce(
+        (count, product) => count + getLowStockEntries(product).length,
+        0,
+      ),
+    [products],
+  );
 
   const categoryTotal = useMemo(() => {
     return new Set(products.map((p) => p.category)).size;
@@ -259,75 +247,21 @@ export function Products() {
   //   return primary?.url || (images?.[0] as any)?.url || "";
   // };
 
-  const { createMessage } = useMessageContext();
   useEffect(() => {
     const fetchProducts = async () => {
-      if (companyId)
-        try {
-          setLoading(true);
-          setError(null);
-          const data = await ProductService.findAll(companyId);
-          setProducts(data);
-
-          for (const p of data) {
-            const primaryImage = (p.images || []).find((img) => img.isPrimary);
-            const imageUrl = primaryImage?.url || p.images?.[0]?.url || "";
-
-            if ((p.stock ?? 0) === 0) {
-              await createMessage({
-                productId: p.id,
-                name: p.name,
-                url: imageUrl,
-                type: "esgotado",
-                description: `O produto "${p.name}" foi esgotado. Estoque zerado. Realize a reposição imediatamente.`,
-                companyId,
-              });
-            } else if ((p.lowStock ?? 0) > (p.stock ?? 0)) {
-              await createMessage({
-                productId: p.id,
-                name: p.name,
-                url: imageUrl,
-                type: "estoque_baixo",
-                description: `Alerta de estoque baixo: o produto "${p.name}" possui apenas ${p.stock ?? 0} unidades restantes. O limite de alerta é ${p.lowStock}. Realize a reposição.`,
-                companyId,
-              });
-            }
-
-            if (Array.isArray(p.variations)) {
-              for (const v of p.variations) {
-                const varImage = v.imageUrl || imageUrl;
-                const varName =
-                  `${p.name} - ${v.color || ""} ${v.size || ""}`.trim();
-                if (Number(v.stock ?? 0) === 0) {
-                  await createMessage({
-                    productId: p.id,
-                    name: varName,
-                    url: varImage,
-                    type: "esgotado",
-                    description: `A variação "${v.color || ""} ${v.size || ""}" do produto "${p.name}" foi esgotada. Estoque zerado. Realize a reposição imediatamente.`,
-                    companyId,
-                  });
-                } else if ((p.lowStock ?? 0) > Number(v.stock ?? 0)) {
-                  await createMessage({
-                    productId: p.id,
-                    name: varName,
-                    url: varImage,
-                    type: "estoque_baixo",
-                    description: `Alerta de estoque baixo: a variação "${v.color || ""} ${v.size || ""}" do produto "${p.name}" possui apenas ${v.stock ?? 0} unidades restantes. O limite de alerta é ${p.lowStock}. Realize a reposição.`,
-                    companyId,
-                  });
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error(err);
-          setError("Erro ao carregar produtos");
-        } finally {
-          setLoading(false);
-        }
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await ProductService.findAll();
+        setProducts(data);
+      } catch (err) {
+        console.error(err);
+        setError("Erro ao carregar produtos");
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchProducts();
+    void fetchProducts();
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -499,7 +433,7 @@ export function Products() {
                       isPrimary: false,
                     })),
                 ]}
-                stock={p.stock}
+                stock={p.stock ?? undefined}
                 available
                 color={p.color}
                 colors={Array.from(

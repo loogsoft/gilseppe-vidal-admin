@@ -1,8 +1,8 @@
 export interface CreditCustomerResponseDto {
   id: string;
-  comapnyId: string;
   customerName: string;
   customerEmail: string;
+  CPF: string;
   phone: string;
   road: string;
   number: string;

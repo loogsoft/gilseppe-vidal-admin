@@ -11,10 +11,8 @@ export const StockMovementService = {
     return response.data;
   },
 
-  findAll: async (companyId: string): Promise<StockMovementResponseDto[]> => {
-    const response = await api.get<StockMovementResponseDto[]>(
-      `${URL}/find-all/${companyId}`,
-    );
+  findAll: async (): Promise<StockMovementResponseDto[]> => {
+    const response = await api.get<StockMovementResponseDto[]>(URL);
     return response.data;
   },
 

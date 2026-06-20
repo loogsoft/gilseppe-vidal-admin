@@ -14,22 +14,25 @@ import EntityCard from "../../components/EntityCard/EntityCard";
 import { SkeletonCard } from "../../components/SkeletonCard/SkeletonCard";
 import { ProductService } from "../../service/Product.service";
 import type { ProductResponse } from "../../dtos/response/product-response.dto";
+import type { StockMovementResponseDto } from "../../dtos/response/stock-movement-response.dto";
 import { ProductStatusEnum } from "../../dtos/enums/product-status.enum";
-
-import { ReturnStockModal } from "../../components/ReturnaStockModal/ReturnStockModal";
+import {
+  ReturnStockModal,
+  type StockHistoryItem,
+} from "../../components/ReturnaStockModal/ReturnStockModal";
 import { StockMovementService } from "../../service/Stock-movement.service";
-import { useAuth } from "../../contexts/useAuth";
 import { DiscountStockModal } from "../../components/DiscountStockModal/DiscountStockModal";
 import { DiscountStockFilterModal } from "../../components/FilterModal/DiscountStockFilterModal";
-
+import {
+  getProductStockLevel,
+  getProductTotalStock,
+  productHasAvailableStock,
+} from "../../utils/productStock";
 type StockLevel = "all" | "ok" | "low" | "critical";
 type SortOption = "alpha" | "priceAsc" | "priceDesc" | "stockAsc" | "stockDesc";
 
 const getStockLevel = (p: ProductResponse): "ok" | "low" | "critical" => {
-  if (p.stock === undefined) return "ok";
-  if (p.stock === 0) return "critical";
-  if (p.stock <= p.lowStock) return "low";
-  return "ok";
+  return getProductStockLevel(p);
 };
 
 export function DiscountStock() {
@@ -37,17 +40,18 @@ export function DiscountStock() {
   const [loading, setLoading] = useState(true);
   const [darBaixaProduct, setDarBaixaProduct] =
     useState<ProductResponse | null>(null);
-  const [voltarEstoqueItem, setVoltarEstoqueItem] = useState<any | null>(null);
-  const [stockHistory, setStockHistory] = useState<any[]>([]);
+  const [voltarEstoqueItem, setVoltarEstoqueItem] =
+    useState<StockHistoryItem | null>(null);
+  const [stockHistory, setStockHistory] =
+    useState<StockMovementResponseDto[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [view, setView] = useState<"stock" | "history">("stock");
+  const [historyTypeFilter, setHistoryTypeFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [activedFindAll, setActivedFindAll] = useState(false);
-  const { user } = useAuth();
-  const companyId = user?.companyId;
   function alternValue() {
     setActivedFindAll((prev) => !prev);
   }
@@ -73,28 +77,48 @@ export function DiscountStock() {
   );
   // ...existing code...
 
+  const formatDate = (date: Date) => {
+    const weekdays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const months = [
+      "Jan",
+      "Fev",
+      "Mar",
+      "Abr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Set",
+      "Out",
+      "Nov",
+      "Dez",
+    ];
+
+    return `${weekdays[date.getDay()]}, ${String(date.getDate()).padStart(
+      2,
+      "0",
+    )} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
   useEffect(() => {
     const fetchProducts = async () => {
-      if (companyId)
-        try {
-          setLoading(true);
-          const data = await ProductService.findAll(companyId);
-          setProducts(data);
-        } catch (err) {
-          console.error(err);
-        } finally {
-          setLoading(false);
-        }
+      try {
+        setLoading(true);
+        const data = await ProductService.findAll();
+        setProducts(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchProducts();
   }, [activedFindAll]);
 
   useEffect(() => {
     const fetchHistory = async () => {
-      if(companyId)
       try {
         setLoading(true);
-        const data = await StockMovementService.findAll(companyId);
+        const data = await StockMovementService.findAll();
         setStockHistory(data);
       } catch (err) {
         console.error(err);
@@ -121,13 +145,8 @@ export function DiscountStock() {
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase();
 
-    let filtered = products.filter((item) => {
-      // Só lista se o produto ou alguma variação tiver estoque > 0
-      const mainStock = item.stock ?? 0;
-      const variationsStock = Array.isArray(item.variations)
-        ? item.variations.some((v) => Number(v.stock ?? 0) > 0)
-        : false;
-      if (mainStock <= 0 && !variationsStock) return false;
+    const filtered = products.filter((item) => {
+      if (!productHasAvailableStock(item)) return false;
 
       const matchesSearch = term
         ? `${item.name} ${item.description ?? ""} ${item.category}`
@@ -142,9 +161,10 @@ export function DiscountStock() {
         (!filters.minPrice || Number(item.price) >= Number(filters.minPrice)) &&
         (!filters.maxPrice || Number(item.price) <= Number(filters.maxPrice));
 
+      const totalStock = getProductTotalStock(item);
       const matchesStock =
-        (!filters.minStock || (item.stock ?? 0) >= Number(filters.minStock)) &&
-        (!filters.maxStock || (item.stock ?? 0) <= Number(filters.maxStock));
+        (!filters.minStock || totalStock >= Number(filters.minStock)) &&
+        (!filters.maxStock || totalStock <= Number(filters.maxStock));
 
       const level = getStockLevel(item);
       const matchesLevel =
@@ -165,9 +185,10 @@ export function DiscountStock() {
         return Number(a.price) - Number(b.price);
       if (filters.sortBy === "priceDesc")
         return Number(b.price) - Number(a.price);
-      if (filters.sortBy === "stockAsc") return (a.stock ?? 0) - (b.stock ?? 0);
+      if (filters.sortBy === "stockAsc")
+        return getProductTotalStock(a) - getProductTotalStock(b);
       if (filters.sortBy === "stockDesc")
-        return (b.stock ?? 0) - (a.stock ?? 0);
+        return getProductTotalStock(b) - getProductTotalStock(a);
       return a.name.localeCompare(b.name, "pt-BR");
     });
 
@@ -176,19 +197,27 @@ export function DiscountStock() {
 
   const filteredHistory = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return stockHistory;
-    return stockHistory.filter((item) => {
-      const productName = item.variation?.name || "";
+    let filtered = stockHistory;
+
+    if (historyTypeFilter !== "all") {
+      filtered = filtered.filter((item) => item.type === historyTypeFilter);
+    }
+
+    if (!term) return filtered;
+
+    return filtered.filter((item) => {
+      const productName = item.productName || item.variation?.name || "";
       const responsible = item.responsibleName || "";
-      return `${productName} ${item.reason} ${responsible}`
+      const movementId = item.id || "";
+      return `${productName} ${item.reason} ${responsible} ${movementId}`
         .toLowerCase()
         .includes(term);
     });
-  }, [search, stockHistory]);
+  }, [historyTypeFilter, search, stockHistory]);
 
   useEffect(() => {
     setPage(1);
-  }, [view, search, category, filters]);
+  }, [view, search, category, filters, historyTypeFilter]);
 
   const totalResults =
     view === "stock" ? filteredItems.length : filteredHistory.length;
@@ -209,7 +238,8 @@ export function DiscountStock() {
   // Calcula o faturamento total
   const faturamento = useMemo(() => {
     return stockHistory.reduce(
-      (acc, h) => acc + (h.price || h.variation?.price || 0) * h.quantity,
+      (acc, h) =>
+        acc + Number(h.price || h.variation?.price || 0) * h.quantity,
       0,
     );
   }, [stockHistory]);
@@ -231,7 +261,7 @@ export function DiscountStock() {
           </p>
         </div>
         <div className={styles.headerMeta}>
-          <div className={styles.date}>Seg, 09 Fev 2026</div>
+          <div className={styles.date}>{formatDate(new Date())}</div>
           <button className={styles.primaryBtn} type="button">
             Baixa manual
           </button>
@@ -369,11 +399,11 @@ export function DiscountStock() {
                           ? v.imageUrl[0]
                           : v.imageUrl || "",
                         fileName: v.name || "",
-                        id: "",
+                        id: v.id || "",
                         isPrimary: false,
-                      })) as any[]),
+                      }))),
                   ]}
-                  stock={item.stock}
+                  stock={item.stock ?? undefined}
                   lowStock={item.lowStock}
                   available={item.status === ProductStatusEnum.ACTIVED}
                   color={item.color}
@@ -491,22 +521,25 @@ export function DiscountStock() {
                   { value: "OUT", label: "Saída" },
                   { value: "IN", label: "Entrada" },
                 ]}
-                value={"all"}
-                onChange={() => {}}
+                value={historyTypeFilter}
+                onChange={(value) => {
+                  setHistoryTypeFilter(value);
+                  setPage(1);
+                }}
               />
             </div>
           </div>
           <div className={styles.table}>
-            <div className={`${styles.row} ${styles.thead}`}>
+            <div
+              className={`${styles.row} ${styles.thead} ${styles.historyRow}`}
+            >
               <div>PRODUTO</div>
               <div>DATA/HORA</div>
               <div>RESPONSÁVEL</div>
               <div>VARIAÇÃO</div>
-              <div className={styles.qtdValorCell}>
-                <span>QTD</span>
-                <span>VALOR</span>
-                <span>FORMA DE PAGAMENTO</span>
-              </div>
+              <div>QTD</div>
+              <div>VALOR</div>
+              <div>FORMA DE PAGAMENTO</div>
               <div>MOTIVO</div>
               <div>TIPO</div>
             </div>
@@ -545,7 +578,10 @@ export function DiscountStock() {
                   .map((p: string) => p[0]?.toUpperCase() ?? "")
                   .join("");
                 return (
-                  <div key={r.id} className={styles.row}>
+                  <div
+                    key={r.id}
+                    className={`${styles.row} ${styles.historyRow}`}
+                  >
                     <div className={styles.idCell}>
                       {r.productName || r.variation?.name || "-"}
                     </div>
@@ -568,20 +604,20 @@ export function DiscountStock() {
                       )}
                       {r.variation?.size || "-"}
                     </div>
-                    <div className={styles.qtdValorCell}>
-                      <span className={styles.totalCell}>{r.quantity}x</span>
-                      <span className={styles.valueCell}>
-                        R$
-                        {Number(
-                          r.price || r.variation?.price || 0,
-                        ).toLocaleString("pt-BR")}
-                      </span>
-                      <span className={styles.paymentCell}>
-                        {r.paymentMethod || "-"}
-                      </span>
+                    <div className={styles.totalCell}>{r.quantity}x</div>
+                    <div className={styles.valueCell}>
+                      {Number(
+                        r.price || r.variation?.price || 0,
+                      ).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </div>
+                    <div className={styles.paymentCell}>
+                      {r.paymentMethod || "-"}
                     </div>
                     <div className={styles.reasonCell}>{r.reason || "-"}</div>
-                    <div>
+                    <div className={styles.typeCell}>
                       {r.type === "OUT" ? (
                         <span className={styles.statusOut}>SAÍDA</span>
                       ) : (

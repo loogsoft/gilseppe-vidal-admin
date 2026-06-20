@@ -17,7 +17,6 @@ import type { SupplierResponseDto } from "../../dtos/response/supplier-response.
 import StatCard from "../../components/StatCard/StatCard";
 import { CustomSelect } from "../../components/CustomSelect/CustomSelect";
 import type { CategoryKey } from "../../types/Product-type";
-import { useAuth } from "../../contexts/useAuth";
 
 type SupplierStatus = "active" | "inactive";
 type SortOption = "price-asc" | "price-desc" | "name-asc" | null;
@@ -117,9 +116,6 @@ export function Supplier() {
     sortBy: null,
   });
 
-  const { user } = useAuth();
-  const companyId = user?.companyId;
-  
   const counts = useMemo(() => {
     const categories = new Set(suppliers.map((s) => s.category));
     const countBy = (category: string) =>
@@ -170,19 +166,18 @@ export function Supplier() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (companyId)
-        try {
-          setLoading(true);
-          setError(null);
-          const data = await SupplierService.findAll(companyId);
-          const list = Array.isArray(data) ? data : (data.data ?? []);
-          setSuppliers(list.map(mapSupplierCard));
-        } catch (err) {
-          console.error(err);
-          setError("Erro ao carregar fornecedores");
-        } finally {
-          setLoading(false);
-        }
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await SupplierService.findAll();
+        const list = Array.isArray(data) ? data : (data.data ?? []);
+        setSuppliers(list.map(mapSupplierCard));
+      } catch (err) {
+        console.error(err);
+        setError("Erro ao carregar fornecedores");
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, []);

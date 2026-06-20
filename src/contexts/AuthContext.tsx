@@ -19,7 +19,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const verify = localStorage.getItem("companyId");
       if (verify) companyId = verify;
-    } catch {}
+    } catch {
+      // O armazenamento pode estar indisponível em ambientes restritos.
+    }
     let profile: {
       id: string;
       name?: string;
@@ -40,7 +42,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         companyId: full.companyId || companyId,
         userType: full.userType,
       };
-    } catch {}
+    } catch {
+      // Mantém os dados básicos retornados por /me quando o perfil falhar.
+    }
     if (!profile.companyId && companyId) {
       profile.companyId = companyId;
     }
@@ -77,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     validateToken();
-  }, []);
+  }, [fetchUser]);
 
   function login(token: string) {
     localStorage.setItem("token", token);

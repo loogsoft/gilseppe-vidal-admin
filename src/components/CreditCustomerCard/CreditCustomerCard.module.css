@@ -1,0 +1,151 @@
+.card {
+  position: relative;
+  min-height: 500px;
+  border-radius: 30px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
+}
+
+.hero {
+  min-height: 248px;
+  padding: 32px 24px 24px;
+  background: var(--surface-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatarWrap {
+  width: 112px;
+  height: 112px;
+  border-radius: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-1);
+}
+
+.avatar {
+  width: 86px;
+  height: 86px;
+  border-radius: 24px;
+  background: var(--highlight-secondary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: 700;
+  border: 1px solid var(--border-default);
+}
+
+.initials {
+  letter-spacing: 0.05em;
+  font-size: 28px;
+}
+
+.body {
+  padding: 18px 24px 24px;
+  min-height: 252px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.name {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--highlight-secondary);
+  border: 1px solid color-mix(in srgb, var(--highlight-primary) 26%, var(--border-default));
+  color: var(--highlight-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.metaList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.metaItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.iconWrap {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon {
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.metaText {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
+:global([data-theme="dark"]) .hero {
+  background: var(--surface-muted);
+}
+
+:global([data-theme="dark"]) .avatar {
+  color: var(--text-on-dark);
+}
+
+@media (max-width: 768px) {
+  .card {
+    min-height: 460px;
+  }
+
+  .hero {
+    min-height: 220px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

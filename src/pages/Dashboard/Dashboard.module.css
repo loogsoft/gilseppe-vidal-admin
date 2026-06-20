@@ -139,8 +139,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff4ce;
-  color: #f1b700;
+  background: var(--highlight-secondary);
+  color: var(--highlight-primary);
   font-size: 18px;
 }
 
@@ -154,12 +154,12 @@
 }
 
 .metricBadgeNeutral {
-  background: #edf2f7;
-  color: #94a3b8;
+  background: var(--surface-muted);
+  color: var(--text-muted);
 }
 
 .metricLabel {
-  color: #7b8794;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.07em;
@@ -168,14 +168,14 @@
 
 .metricValue {
   margin-top: 6px;
-  color: #111827;
+  color: var(--text-primary);
   font-size: 26px;
   font-weight: 600;
 }
 
 .metricValueSmall {
   margin-top: 6px;
-  color: #111827;
+  color: var(--text-primary);
   font-size: 22px;
   font-weight: 600;
 }
@@ -215,46 +215,79 @@
   margin-top: 2px;
 }
 
-.legend {
+.chartSummary {
   display: inline-flex;
   align-items: center;
-  gap: 16px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #8a94a6;
+  gap: 10px;
+}
+
+.chartSummaryItem {
+  min-width: 128px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.chartSummaryItem span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.legendItem {
+.chartSummaryItem strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.chartLegend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chartLegendItem {
   position: relative;
-  padding-left: 16px;
+  padding-left: 18px;
 }
 
-.legendItem::before {
+.chartLegendItem::before {
   content: "";
   position: absolute;
   left: 0;
   top: 50%;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 4px;
   background: var(--highlight-primary);
   transform: translateY(-50%);
 }
 
-.legendMuted {
-  color: #c7ceda;
-}
-
-.legendMuted::before {
-  background: #dfe6f1;
+.chartLegendLine::before {
+  height: 3px;
+  border-radius: 999px;
+  background: #2563eb;
 }
 
 .chartWrap {
-  margin-top: 16px;
+  margin-top: 12px;
+  min-height: 320px;
   border-radius: 20px;
   overflow: hidden;
-  background: var(--surface);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-muted) 55%, transparent), transparent 62%),
+    var(--surface);
   padding: 8px 10px 12px;
 }
 
@@ -262,7 +295,8 @@
   background: var(--surface);
   border: 1px solid var(--border-default);
   border-radius: 12px;
-  padding: 10px 12px;
+  min-width: 190px;
+  padding: 11px 12px;
   color: var(--text-primary);
   box-shadow: var(--shadow-2);
 }
@@ -274,10 +308,61 @@
   margin-bottom: 6px;
 }
 
+.tooltipRow {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tooltipRow + .tooltipRow {
+  margin-top: 5px;
+}
+
+.tooltipRow strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.tooltipDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 4px;
+  background: var(--highlight-primary);
+}
+
+.tooltipDotLine {
+  height: 3px;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
 .tooltipValue {
   font-size: 12px;
   font-weight: 600;
   color: var(--highlight-primary);
+}
+
+.chartEmpty {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chartEmpty svg {
+  width: 32px;
+  height: 32px;
+  color: var(--highlight-primary);
+  opacity: 0.78;
 }
 
 .tablePanel {
@@ -552,7 +637,7 @@
 }
 
 .search:hover {
-  border-color: #000;
+  border-color: var(--control-hover-border);
 }
 
 .search:focus-within {
@@ -609,3 +694,43 @@
   white-space: nowrap;
 }
 
+@media (max-width: 1100px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .top,
+  .panelHeader,
+  .filters,
+  .bottom,
+  .tableFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .actions,
+  .periodTabs,
+  .chartSummary {
+    width: 100%;
+  }
+
+  .periodTab {
+    flex: 1;
+  }
+
+  .metrics,
+  .chartSummary {
+    grid-template-columns: 1fr;
+  }
+
+  .chartSummary {
+    display: grid;
+  }
+
+  .chartWrap {
+    min-height: 280px;
+    padding: 4px 0 8px;
+  }
+}

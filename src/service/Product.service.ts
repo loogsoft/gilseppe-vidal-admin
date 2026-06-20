@@ -6,7 +6,13 @@ import api from "./api";
 const API_URL = "/products";
 
 function appendFormValue(fd: FormData, key: string, value: unknown) {
-  if (value === undefined || value === null) return;
+  if (value === undefined) return;
+
+  if (value === null) {
+    if (key === "supplierId") fd.append(key, "");
+    if (key === "promoPrice") fd.append(key, "null");
+    return;
+  }
 
   if (Array.isArray(value) || typeof value === "object") {
     fd.append(key, JSON.stringify(value));
@@ -17,8 +23,8 @@ function appendFormValue(fd: FormData, key: string, value: unknown) {
 }
 
 export const ProductService = {
-  findAll: async (companyId: string): Promise<ProductResponse[]> => {
-    const response = await api.get<ProductResponse[]>(`${API_URL}/find-all/${companyId}`);
+  findAll: async (): Promise<ProductResponse[]> => {
+    const response = await api.get<ProductResponse[]>(API_URL);
     return response.data;
   },
 
@@ -34,9 +40,10 @@ export const ProductService = {
     const formData = new FormData();
 
     const { variations, ...productData } = product;
-    const variationsForJson = variations?.map(
-      ({ images: _images, ...rest }) => rest,
-    );
+    const variationsForJson = variations?.map(({ images, ...rest }) => {
+      void images;
+      return rest;
+    });
 
     Object.entries({ ...productData, variations: variationsForJson }).forEach(
       ([key, value]) => {
@@ -75,9 +82,10 @@ export const ProductService = {
     const formData = new FormData();
 
     const { variations, ...productData } = product;
-    const variationsForJson = variations?.map(
-      ({ images: _images, ...rest }) => rest,
-    );
+    const variationsForJson = variations?.map(({ images, ...rest }) => {
+      void images;
+      return rest;
+    });
 
     Object.entries({ ...productData, variations: variationsForJson }).forEach(
       ([key, value]) => {

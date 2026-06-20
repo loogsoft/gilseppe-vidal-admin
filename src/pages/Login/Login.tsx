@@ -95,7 +95,7 @@ export default function Login() {
       await UserService.create(payloadUser);
       setStep("login");
       setLoading(false);
-    } catch (error) {
+    } catch {
       showErrorToast();
       setLoading(false);
     }
@@ -215,7 +215,7 @@ export default function Login() {
           localStorage.setItem("token", verify.token);
 
           // Buscar dados do usuário para pegar o userType
-          let userType: any = undefined;
+          let userType: UserTypeEnum | undefined;
           let userCompanyId: string | undefined = undefined;
           try {
             const userData = await UserService.getMe();
@@ -226,9 +226,11 @@ export default function Login() {
               if (userCompanyId) {
                 localStorage.setItem("companyId", String(userCompanyId));
               }
-              localStorage.setItem("userType", userType);
+              if (userType) localStorage.setItem("userType", userType);
             }
-          } catch {}
+          } catch {
+            // O token continua válido mesmo se o perfil completo não carregar.
+          }
 
           setTimeout(() => {
             contextLogin(verify.token);
@@ -265,7 +267,9 @@ export default function Login() {
                 hexToRgba(data.color, 0.1),
               );
             }
-          } catch (error) {}
+          } catch {
+            // A personalização visual é opcional e não bloqueia o login.
+          }
         } catch {
           setCode(["", "", "", "", "", ""]);
           codeRefs.current[0]?.focus();
@@ -510,7 +514,7 @@ export default function Login() {
                   <span
                     onClick={() => setStep("newCommunity")}
                     style={{
-                      color: "#2563eb",
+                      color: "var(--status-info)",
                       fontWeight: 600,
                       textDecoration: "none",
                       cursor: "pointer",
@@ -685,21 +689,7 @@ export default function Login() {
               </>
             ) : step === "newCommunity2" ? (
               <>
-                <div
-                  style={{
-                    width: 200,
-                    height: 200,
-                    margin: "0 auto 18px auto",
-                    borderRadius: 999,
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
-                    background: "#fff",
-                    border: "1px solid #eee",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
+                <div className={styles.logoPreviewCircle}>
                   {logoPreview ? (
                     <img
                       src={logoPreview}
@@ -727,25 +717,13 @@ export default function Login() {
                     onChange={handleLogoChange}
                   />
                   <div
-                    style={{
-                      border: "1.5px dashed #cbd5e1",
-                      borderRadius: 14,
-                      background: "#f8fafc",
-                      minHeight: 90,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      padding: 12,
-                      gap: 2,
-                    }}
+                    className={styles.logoDropZone}
                     onClick={() => logoInputRef.current?.click()}
                   >
-                    <span style={{ color: "#64748b", fontSize: 14 }}>
+                    <span className={styles.logoDropTitle}>
                       Clique para adicionar logo
                     </span>
-                    <span style={{ color: "#94a3b8", fontSize: 12 }}>
+                    <span className={styles.logoDropHint}>
                       PNG, JPG ou SVG (máx. 2MB)
                     </span>
                   </div>

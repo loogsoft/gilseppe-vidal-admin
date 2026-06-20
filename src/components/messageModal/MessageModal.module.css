@@ -501,7 +501,7 @@
 }
 
 .searchBtn:hover {
-  background: #f0b92e;
+  background: color-mix(in srgb, var(--highlight-primary) 82%, black);
 }
 
 .searchBtn:active {

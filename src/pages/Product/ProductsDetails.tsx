@@ -7,12 +7,14 @@ import { ProductService } from "../../service/Product.service";
 import type { ProductRequest } from "../../dtos/request/product-request.dto";
 import type { ProductVariationRequestDto } from "../../dtos/request/product-variation-request.dto";
 import type { ProductVariationResponseDto } from "../../dtos/response/product-variation-response.dto";
-import { Save, Plus, Pencil } from "lucide-react";
+import { Save, Plus, Pencil, X } from "lucide-react";
 import { ImageGallery } from "../../components/ImageGallery/ImageGallery";
 import EntityCard from "../../components/EntityCard/EntityCard";
 import { ButtonBack } from "../../components/ButtonBack/ButtonBack";
 import { FiTrash2 } from "react-icons/fi";
-import { useAuth } from "../../contexts/useAuth";
+import { toast } from "react-toastify";
+import { SupplierService } from "../../service/Supplier.service";
+import type { SupplierResponseDto } from "../../dtos/response/supplier-response.dto";
 
 type Variation = ProductVariationRequestDto | ProductVariationResponseDto;
 
@@ -40,8 +42,6 @@ export function ProductsDetails() {
   const [editingColor, setEditingColor] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const { user } = useAuth();
-  const companyId = user?.companyId;
 
   const [productType, setProductType] = useState<
     (typeof ProductType)[keyof typeof ProductType]
@@ -55,11 +55,14 @@ export function ProductsDetails() {
   const [price, setPrice] = useState("");
   const [promoPrice, setPromoPrice] = useState("");
   const [color, setColor] = useState("");
-  const [size, setSize] = useState("");
+  const [size, setSize] = useState("P");
   const [lowStock, setLowStock] = useState("5");
   const [activeLowStock, setActiveLowStock] = useState(true);
   const [stock, setStock] = useState("");
   const [supplierId, setSupplierId] = useState("");
+  const [suppliers, setSuppliers] = useState<SupplierResponseDto[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
+  const [loadingProduct, setLoadingProduct] = useState(isEdit);
   const [imageNames, setImageNames] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -81,6 +84,13 @@ export function ProductsDetails() {
     setPrice(formatCurrency(raw));
   };
 
+  const handlePromoPriceChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const raw = event.target.value.replace(/[^0-9]/g, "");
+    setPromoPrice(raw ? formatCurrency(raw) : "");
+  };
+
   const [existingImageIds, setExistingImageIds] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -95,7 +105,7 @@ export function ProductsDetails() {
   const [variationIsActive, setVariationIsActive] = useState(true);
   const [variationLowStockAlertEnabled, setVariationLowStockAlertEnabled] =
     useState(false);
-  const [variationLowStock, setVariationLowStock] = useState("");
+  const [variationLowStock, setVariationLowStock] = useState("5");
   const [variationImageFiles, setVariationImageFiles] = useState<File[]>([]);
   const [variationImagePreviews, setVariationImagePreviews] = useState<
     string[]
@@ -120,59 +130,74 @@ export function ProductsDetails() {
   };
 
   useEffect(() => {
+    const loadSuppliers = async () => {
+      try {
+        const response = await SupplierService.findAll();
+        setSuppliers(Array.isArray(response) ? response : response.data ?? []);
+      } catch {
+        toast.error("Não foi possível carregar os fornecedores.");
+      } finally {
+        setLoadingSuppliers(false);
+      }
+    };
+
+    void loadSuppliers();
+  }, []);
+
+  useEffect(() => {
     const loadProduct = async () => {
       if (!isEdit || !id) {
         return;
       }
 
-      const data = await ProductService.findOne(id);
-      setName(data.name ?? "");
-      setDescription(data.description ?? "");
-      setCategory(data.category ?? ProductCategoryEnum.SHIRT);
-      setStatus(data.status ?? ProductStatusEnum.ACTIVED);
-      setPrice(data.price ? String(data.price).replace(".", ",") : "");
-      setPromoPrice(
-        data.promoPrice ? String(data.promoPrice).replace(".", ",") : "",
-      );
-      setColor(data.color ?? "");
-      setSize(data.size ?? "");
-      setLowStock(String(data.lowStock ?? ""));
-      setActiveLowStock(!!data.activeLowStock);
-      setStock(String(data.stock ?? ""));
-      setImageNames((data.images || []).map((img) => img.fileName));
-      setImageFiles([]);
-      setImagePreviews((data.images || []).map((img) => img.url));
-      setExistingImageIds((data.images || []).map((img) => img.id));
-      setSelectedImageIndex(0);
-      const hasVariations = (data.variations || []).length > 0;
-      setProductType(
-        hasVariations ? ProductType.VARIATION : ProductType.UNIQUE,
-      );
-      // Load variations incluindo activeLowStock e lowStock
-      const cleanLoadedVariations = (data.variations || []).map((v) => ({
-        name: v.name,
-        price: v.price,
-        stock: v.stock,
-        isActive: v.isActive ?? true,
-        color: v.color,
-        size: v.size,
-        images: v.imageUrl
-          ? [
-              {
-                url: v.imageUrl,
-                fileName: v.name || "",
-                id: "",
-                isPrimary: false,
-              },
-            ]
-          : undefined,
-        activeLowStock: v.activeLowStock ?? false,
-        lowStock: v.lowStock ?? 0,
-      })) as ProductVariationRequestDto[];
-      setVariations(cleanLoadedVariations);
+      try {
+        const data = await ProductService.findOne(id);
+        setName(data.name ?? "");
+        setDescription(data.description ?? "");
+        setCategory(data.category ?? ProductCategoryEnum.SHIRT);
+        setStatus(data.status ?? ProductStatusEnum.ACTIVED);
+        setPrice(data.price ? String(data.price).replace(".", ",") : "");
+        setPromoPrice(
+          data.promoPrice ? String(data.promoPrice).replace(".", ",") : "",
+        );
+        setColor(data.color ?? "");
+        setSize(data.size ?? "P");
+        setLowStock(String(data.lowStock ?? ""));
+        setActiveLowStock(!!data.activeLowStock);
+        setStock(String(data.stock ?? ""));
+        setSupplierId(data.supplier?.id ?? "");
+        setImageNames((data.images || []).map((img) => img.fileName));
+        setImageFiles([]);
+        setImagePreviews((data.images || []).map((img) => img.url));
+        setExistingImageIds((data.images || []).map((img) => img.id));
+        setSelectedImageIndex(0);
+        const hasVariations =
+          (data.price as number | null) === null &&
+          (data.stock ?? null) === null &&
+          (data.variations || []).length > 0;
+        setProductType(
+          hasVariations ? ProductType.VARIATION : ProductType.UNIQUE,
+        );
+        const cleanLoadedVariations = (data.variations || []).map((v) => ({
+          name: v.name ?? undefined,
+          price: v.price === null ? undefined : Number(v.price),
+          stock: Number(v.stock ?? 0),
+          isActive: v.isActive ?? true,
+          color: v.color ?? "",
+          size: v.size ?? "",
+          imageUrl: v.imageUrl ?? undefined,
+          activeLowStock: v.activeLowStock ?? false,
+          lowStock: v.lowStock ?? 0,
+        })) as ProductVariationRequestDto[];
+        setVariations(hasVariations ? cleanLoadedVariations : []);
+      } catch {
+        toast.error("Não foi possível carregar os dados do produto.");
+      } finally {
+        setLoadingProduct(false);
+      }
     };
 
-    loadProduct();
+    void loadProduct();
   }, [id, isEdit]);
 
   const onPickImages = () => {
@@ -227,7 +252,7 @@ export function ProductsDetails() {
     setShowVariationColorPicker(false);
     setEditingVariationIndex(null);
     setVariationLowStockAlertEnabled(false);
-    setVariationLowStock("");
+    setVariationLowStock("5");
     setExpandedVariationForm(true);
   };
 
@@ -240,6 +265,15 @@ export function ProductsDetails() {
     setEditingVariationIndex(null);
   };
 
+  const onProductTypeChange = (
+    nextType: (typeof ProductType)[keyof typeof ProductType],
+  ) => {
+    if (nextType === productType) return;
+
+    onCloseVariationForm();
+    setProductType(nextType);
+  };
+
   const onEditVariation = (index: number) => {
     const v = variations[index];
     setVariationColor(v.color || "");
@@ -249,24 +283,18 @@ export function ProductsDetails() {
       v.stock !== undefined && v.stock !== null ? String(v.stock) : "",
     );
     setVariationIsActive(v.isActive ?? true);
-    setVariationLowStockAlertEnabled(
-      "activeLowStock" in v
-        ? Boolean((v as any).activeLowStock)
-        : Boolean((v as any).lowStock && (v as any).lowStock > 0),
-    );
+    setVariationLowStockAlertEnabled(Boolean(v.activeLowStock ?? v.lowStock));
     setVariationLowStock(
-      "lowStock" in v &&
-        (v as any).lowStock !== undefined &&
-        (v as any).lowStock !== null
-        ? String((v as any).lowStock)
-        : "",
+      v.lowStock !== undefined && v.lowStock !== null && v.lowStock > 0
+        ? String(v.lowStock)
+        : "5",
     );
-    const imgs = (v.images || []) as any[];
     setVariationImageFiles([]);
+    const previews = (v.images ?? []).map((image) =>
+      image instanceof File ? URL.createObjectURL(image) : image.url,
+    );
     setVariationImagePreviews(
-      imgs.map((img) =>
-        img instanceof File ? URL.createObjectURL(img) : img.url || "",
-      ),
+      previews.length > 0 ? previews : v.imageUrl ? [v.imageUrl] : [],
     );
     setSelectedVariationImageIndex(0);
     setShowVariationColorPicker(false);
@@ -313,23 +341,39 @@ export function ProductsDetails() {
 
   const onAddVariation = () => {
     if (!variationColor.trim() || !variationSize.trim()) {
-      alert("Cor e tamanho da variação são obrigatórios");
+      toast.error("Informe a cor e o tamanho da variação.");
       return;
     }
 
     if (!variationStock.trim()) {
-      alert("Estoque da variação é obrigatório");
+      toast.error("Informe o estoque da variação.");
+      return;
+    }
+
+    const stockValue = Number(variationStock);
+    if (!Number.isInteger(stockValue) || stockValue < 0) {
+      toast.error("O estoque da variação deve ser um número inteiro positivo.");
       return;
     }
 
     if (variationPrice.trim()) {
       const priceValue = Number(variationPrice.replace(",", "."));
       if (isNaN(priceValue)) {
-        alert("Preço da variação deve ser um número válido");
+        toast.error("Informe um preço válido para a variação.");
         return;
       }
       if (priceValue < 0) {
-        alert("Preço da variação não pode ser negativo");
+        toast.error("O preço da variação não pode ser negativo.");
+        return;
+      }
+    }
+
+    if (variationLowStockAlertEnabled) {
+      const lowStockValue = Number(variationLowStock);
+      if (!Number.isInteger(lowStockValue) || lowStockValue <= 0) {
+        toast.error(
+          "O estoque mínimo da variação deve ser um número inteiro maior que zero.",
+        );
         return;
       }
     }
@@ -342,7 +386,7 @@ export function ProductsDetails() {
     );
 
     if (duplicate) {
-      alert(
+      toast.error(
         `Já existe uma variação com a cor ${variationColor} e tamanho ${variationSize}. Escolha uma combinação diferente.`,
       );
       return;
@@ -350,19 +394,13 @@ export function ProductsDetails() {
 
     const targetIndex = editingVariationIndex;
 
-    const existingImages =
-      targetIndex !== null ? variations[targetIndex].images : undefined;
-
     const newVariation: ProductVariationRequestDto = {
-      companyId: companyId ?? "",
       name: `${variationColor.trim()} ${variationSize.trim()}`,
       price: variationPrice.trim()
         ? Number(variationPrice.replace(",", "."))
         : 0,
       stock:
-        variationStock && !isNaN(Number(variationStock))
-          ? Number(variationStock)
-          : 0,
+        variationStock && !isNaN(Number(variationStock)) ? stockValue : 0,
       color: variationColor.trim(),
       size: variationSize.trim(),
       isActive: variationIsActive,
@@ -374,9 +412,11 @@ export function ProductsDetails() {
           ? Number(variationLowStock)
           : 0,
       images:
-        variationImageFiles.length > 0
-          ? variationImageFiles
-          : (existingImages as any),
+        variationImageFiles.length > 0 ? variationImageFiles : undefined,
+      imageUrl:
+        variationImageFiles.length === 0 && targetIndex !== null
+          ? variations[targetIndex].imageUrl
+          : undefined,
     };
 
     if (targetIndex !== null) {
@@ -402,52 +442,71 @@ export function ProductsDetails() {
   const onSave = async () => {
     if (saving) return;
 
-    // Validações básicas
     if (!name.trim()) {
-      alert("Nome do produto é obrigatório");
+      toast.error("Informe o nome do produto.");
       return;
     }
 
     if (productType === ProductType.UNIQUE) {
       if (!price.trim()) {
-        alert("Preço do produto é obrigatório");
+        toast.error("Informe o preço do produto.");
         return;
       }
       const priceValue = Number(toDot(price));
       if (isNaN(priceValue)) {
-        alert("Preço deve ser um número válido");
+        toast.error("Informe um preço válido.");
         return;
       }
       if (priceValue < 0) {
-        alert("Preço não pode ser negativo");
+        toast.error("O preço não pode ser negativo.");
         return;
       }
       if (!color.trim()) {
-        alert("Cor do produto é obrigatória");
+        toast.error("Selecione a cor do produto.");
         return;
       }
       if (!stock.trim()) {
-        alert("Quantidade em estoque é obrigatória");
+        toast.error("Informe a quantidade em estoque.");
         return;
       }
+      const stockValue = Number(stock);
+      if (!Number.isInteger(stockValue) || stockValue < 0) {
+        toast.error("O estoque deve ser um número inteiro positivo.");
+        return;
+      }
+      if (activeLowStock) {
+        const lowStockValue = Number(lowStock);
+        if (!Number.isInteger(lowStockValue) || lowStockValue < 0) {
+          toast.error("O estoque mínimo deve ser um número inteiro positivo.");
+          return;
+        }
+      }
+    } else if (variations.length === 0) {
+      toast.error("Adicione pelo menos uma variação ao produto.");
+      return;
     }
 
-    if (promoPrice.trim()) {
+    if (promoPrice.trim() && productType === ProductType.UNIQUE) {
       const promoValue = Number(toDot(promoPrice));
+      const priceValue = Number(toDot(price));
       if (isNaN(promoValue)) {
-        alert("Preço promocional deve ser um número válido");
+        toast.error("Informe um preço promocional válido.");
         return;
       }
       if (promoValue < 0) {
-        alert("Preço promocional não pode ser negativo");
+        toast.error("O preço promocional não pode ser negativo.");
+        return;
+      }
+      if (promoValue >= priceValue) {
+        toast.error("O preço promocional deve ser menor que o preço normal.");
         return;
       }
     }
 
     // Clean variations: keep ONLY fields expected by backend
     // Remove: id, createdAt, updatedAt, createdBy, updatedBy, etc
-    const cleanVariations =
-      variations.length > 0
+    const cleanVariations: ProductVariationRequestDto[] | undefined =
+      productType === ProductType.VARIATION && variations.length > 0
         ? variations.map((variation) => {
             let priceValue: number = 0;
             if (variation.price !== undefined && variation.price !== null) {
@@ -457,42 +516,55 @@ export function ProductsDetails() {
                   : Number(variation.price);
             }
             return {
-              name: variation.name,
+              name: variation.name ?? undefined,
               price: priceValue,
               stock:
                 variation.stock !== undefined && variation.stock !== null
                   ? Number(variation.stock)
                   : 0,
               isActive: variation.isActive ?? true,
-              color: variation.color,
-              size: variation.size,
-              images: variation.images,
+              color: variation.color ?? "",
+              size: variation.size ?? "",
+              images: variation.images?.filter(
+                (image): image is File => image instanceof File,
+              ),
+              imageUrl: variation.imageUrl ?? undefined,
               activeLowStock: !!variation.activeLowStock,
               lowStock:
                 variation.lowStock !== undefined && variation.lowStock !== null
                   ? Number(variation.lowStock)
                   : 0,
-              companyId: companyId ?? "",
             };
           })
         : undefined;
-    const companyData = localStorage.getItem("company");
     const payload: ProductRequest = {
-      companyId: companyId ? companyId : companyData,
       name: name.trim(),
       description: description.trim() || undefined,
       category,
       status,
-      promoPrice: promoPrice.trim() ? Number(toDot(promoPrice)) : 0,
-      activeLowStock,
+      promoPrice:
+        productType === ProductType.UNIQUE && promoPrice.trim()
+          ? Number(toDot(promoPrice))
+          : null,
+      activeLowStock:
+        productType === ProductType.UNIQUE ? activeLowStock : false,
       lowStock:
-        activeLowStock && lowStock && !isNaN(Number(lowStock))
+        productType === ProductType.UNIQUE &&
+        activeLowStock &&
+        lowStock &&
+        !isNaN(Number(lowStock))
           ? Number(lowStock)
           : 0,
-      variations: cleanVariations,
-      imageIds: isEdit ? existingImageIds : undefined,
-      supplierId: supplierId.trim() || undefined,
-    } as ProductRequest;
+      variations:
+        productType === ProductType.VARIATION ? cleanVariations : [],
+      imageIds:
+        isEdit
+          ? productType === ProductType.UNIQUE
+            ? existingImageIds
+            : []
+          : undefined,
+      supplierId: supplierId.trim() || (isEdit ? null : undefined),
+    };
 
     if (productType === ProductType.UNIQUE) {
       payload.price = price.trim() ? Number(toDot(price)) : 0;
@@ -501,25 +573,33 @@ export function ProductsDetails() {
       payload.stock = stock && !isNaN(Number(stock)) ? Number(stock) : 0;
     } else if (productType === ProductType.VARIATION) {
       payload.price = null;
-      payload.color = undefined;
-      payload.size = undefined;
+      payload.color = null;
+      payload.size = null;
       payload.stock = null;
       payload.promoPrice = null;
     }
 
     try {
       setSaving(true);
+      const productImages =
+        productType === ProductType.UNIQUE && imageFiles.length > 0
+          ? imageFiles
+          : undefined;
       if (isEdit && id) {
-        await ProductService.update(
-          id,
-          payload,
-          imageFiles.length > 0 ? imageFiles : undefined,
-        );
+        await ProductService.update(id, payload, productImages);
+        toast.success("Produto atualizado com sucesso.");
         navigate(-1);
         return;
       }
-      await ProductService.create(payload, imageFiles);
+      await ProductService.create(payload, productImages);
+      toast.success("Produto criado com sucesso.");
       navigate(-1);
+    } catch {
+      toast.error(
+        isEdit
+          ? "Não foi possível atualizar o produto. Confira os campos e tente novamente."
+          : "Não foi possível criar o produto. Confira os campos e tente novamente.",
+      );
     } finally {
       setSaving(false);
     }
@@ -543,13 +623,12 @@ export function ProductsDetails() {
         ref={variationFileInputRef}
         type="file"
         accept="image/*"
-        multiple
         style={{ display: "none" }}
         onChange={onVariationImagesSelected}
       />
 
       <div className={styles.top}>
-        <div style={{ display: "flex", alignItems: "center" }}>
+        <div className={styles.heading}>
           <ButtonBack />
           <div>
             <h1 className={styles.title}>
@@ -574,7 +653,7 @@ export function ProductsDetails() {
             className={styles.save}
             type="button"
             onClick={onSave}
-            disabled={saving}
+            disabled={saving || loadingProduct}
           >
             <Save size={16} />
             {saving ? loadingLabel : actionLabel}
@@ -582,10 +661,15 @@ export function ProductsDetails() {
         </div>
       </div>
 
-      <div className={styles.content}>
+      <div
+        className={`${styles.content} ${
+          productType === ProductType.VARIATION ? styles.contentWide : ""
+        }`}
+      >
         {productType === ProductType.UNIQUE && (
           <aside className={styles.imageGalleryAside}>
             <ImageGallery
+              className={styles.productGallery}
               previews={imagePreviews}
               selectedIndex={selectedImageIndex}
               imageNames={imageNames}
@@ -596,107 +680,60 @@ export function ProductsDetails() {
           </aside>
         )}
 
-        <div className={styles.formColumn} style={{ marginBottom: 40 }}>
+        <div className={styles.formColumn}>
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
-              <span className={styles.panelTitle}>Informações do produto</span>
+              <div>
+                <span className={styles.panelTitle}>Informações do produto</span>
+                <p className={styles.panelDescription}>
+                  Dados usados no catálogo e no controle de estoque.
+                </p>
+              </div>
             </div>
 
             <div className={styles.form}>
-              <div className={styles.row2}>
-                <label className={styles.field}>
-                  <span className={styles.label}>Tipo de produto</span>
-                  <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        background: "#F6F6F6",
-                        borderRadius: 24,
-                        overflow: "hidden",
-                        padding: 3,
-                        border: "1px solid #E0E0E0",
-                        width: 320,
-                        height: 40,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        style={{
-                          flex: 1,
-                          background:
-                            productType === ProductType.UNIQUE
-                              ? "var(--highlight-primary)"
-                              : "#F6F6F6",
-                          color:
-                            productType === ProductType.UNIQUE
-                              ? "#ffffff"
-                              : "#A0A0A0",
-                          border: "none",
-                          outline: "none",
-                          fontWeight: 600,
-                          fontSize: 13,
-                          padding: "0 0.5rem",
-                          borderRadius: 24,
-                          boxShadow:
-                            productType === ProductType.UNIQUE
-                              ? "0 2px 8px #0001"
-                              : "none",
-                          transition: "all 0.2s",
-                          cursor:
-                            productType === ProductType.UNIQUE
-                              ? "default"
-                              : "pointer",
-                        }}
-                        onClick={() => setProductType(ProductType.UNIQUE)}
-                        disabled={productType === ProductType.UNIQUE}
-                      >
-                        Produto único
-                      </button>
-                      <button
-                        type="button"
-                        style={{
-                          flex: 1,
-                          background:
-                            productType === ProductType.VARIATION
-                              ? "var(--highlight-primary)"
-                              : "#F6F6F6",
-                          color:
-                            productType === ProductType.VARIATION
-                              ? "#ffffff"
-                              : "#A0A0A0",
-                          border: "none",
-                          outline: "none",
-                          fontWeight: 600,
-                          fontSize: 13,
-                          padding: "0 0.5rem",
-                          borderRadius: 24,
-                          boxShadow:
-                            productType === ProductType.VARIATION
-                              ? "0 2px 8px #0001"
-                              : "none",
-                          transition: "all 0.2s",
-                          cursor:
-                            productType === ProductType.VARIATION
-                              ? "default"
-                              : "pointer",
-                        }}
-                        onClick={() => setProductType(ProductType.VARIATION)}
-                        disabled={productType === ProductType.VARIATION}
-                      >
-                        Produto com variação
-                      </button>
-                    </div>
-                  </div>
-                </label>
+              <div className={styles.field}>
+                <span className={styles.label}>Tipo de produto</span>
+                <div className={styles.typeSelector}>
+                  <button
+                    type="button"
+                    className={`${styles.typeOption} ${
+                      productType === ProductType.UNIQUE
+                        ? styles.typeOptionActive
+                        : ""
+                    }`}
+                    onClick={() => onProductTypeChange(ProductType.UNIQUE)}
+                    aria-pressed={productType === ProductType.UNIQUE}
+                  >
+                    Produto único
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.typeOption} ${
+                      productType === ProductType.VARIATION
+                        ? styles.typeOptionActive
+                        : ""
+                    }`}
+                    onClick={() => onProductTypeChange(ProductType.VARIATION)}
+                    aria-pressed={productType === ProductType.VARIATION}
+                  >
+                    Com variações
+                  </button>
+                </div>
+                <span className={styles.fieldHint}>
+                  Use variações quando o item tiver combinações de cor ou tamanho.
+                </span>
               </div>
 
               <label className={styles.field}>
-                <span className={styles.label}>Nome</span>
+                <span className={styles.label}>Nome *</span>
                 <input
                   className={styles.input}
                   placeholder="Ex: Camisa social"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
+                  maxLength={180}
+                  disabled={loadingProduct}
                 />
               </label>
 
@@ -707,6 +744,7 @@ export function ProductsDetails() {
                   placeholder="Descreva o produto"
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
+                  disabled={loadingProduct}
                 />
               </label>
 
@@ -719,6 +757,7 @@ export function ProductsDetails() {
                     onChange={(event) =>
                       setCategory(event.target.value as ProductCategoryEnum)
                     }
+                    disabled={loadingProduct}
                   >
                     {categoryOptions.map((option) => (
                       <option key={option} value={option}>
@@ -735,6 +774,7 @@ export function ProductsDetails() {
                     onChange={(event) =>
                       setStatus(event.target.value as ProductStatusEnum)
                     }
+                    disabled={loadingProduct}
                   >
                     {statusOptions.map((option) => (
                       <option key={option} value={option}>
@@ -746,20 +786,31 @@ export function ProductsDetails() {
               </div>
 
               <label className={styles.field}>
-                <span className={styles.label}>ID do fornecedor</span>
-                <input
-                  className={styles.input}
-                  placeholder="Informe o ID do fornecedor"
+                <span className={styles.label}>Fornecedor</span>
+                <select
+                  className={styles.select}
                   value={supplierId}
                   onChange={(event) => setSupplierId(event.target.value)}
-                />
+                  disabled={loadingSuppliers || loadingProduct}
+                >
+                  <option value="">
+                    {loadingSuppliers
+                      ? "Carregando fornecedores..."
+                      : "Sem fornecedor vinculado"}
+                  </option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               {productType === ProductType.UNIQUE && (
                 <>
                   <div className={styles.row2}>
                     <div className={styles.field}>
-                      <span className={styles.label}>Cor</span>
+                      <span className={styles.label}>Cor *</span>
                       {isEdit && !editingColor ? (
                         <div className={styles.colorSwatches}>
                           {color && (
@@ -880,36 +931,37 @@ export function ProductsDetails() {
 
                   <div className={styles.row2}>
                     <label className={styles.field}>
-                      <span className={styles.label}>Preço</span>
+                      <span className={styles.label}>Preço *</span>
                       <input
                         className={styles.input}
-                        placeholder="0,00"
+                        placeholder="R$ 0,00"
                         value={price}
                         onChange={handlePriceChange}
+                        inputMode="numeric"
                       />
                     </label>
                     <label className={styles.field}>
                       <span className={styles.label}>Preço promocional</span>
                       <input
                         className={styles.input}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="R$ 0,00"
+                        value={promoPrice}
+                        onChange={handlePromoPriceChange}
+                        inputMode="numeric"
                       />
                     </label>
                   </div>
 
                   <div className={styles.row2}>
                     <label className={styles.field}>
-                      <span className={styles.label}>Estoque</span>
+                      <span className={styles.label}>Estoque *</span>
                       <input
                         className={styles.input}
                         placeholder="0"
                         value={stock}
-                        onChange={(e) => setStock(e.target.value)}
+                        onChange={(e) =>
+                          setStock(e.target.value.replace(/\D/g, ""))
+                        }
                         inputMode="numeric"
                         pattern="[0-9]*"
                       />
@@ -935,7 +987,10 @@ export function ProductsDetails() {
                           className={styles.input}
                           placeholder="0"
                           value={lowStock}
-                          onChange={(event) => setLowStock(event.target.value)}
+                          onChange={(event) =>
+                            setLowStock(event.target.value.replace(/\D/g, ""))
+                          }
+                          inputMode="numeric"
                         />
                       )}
                     </div>
@@ -946,35 +1001,62 @@ export function ProductsDetails() {
           </section>
 
           {productType === ProductType.VARIATION && (
-            <section className={styles.panel}>
+            <section className={`${styles.panel} ${styles.variationPanel}`}>
               <div className={styles.panelHeader}>
-                <span className={styles.panelTitle}>Variações do produto</span>
+                <div>
+                  <span className={styles.panelTitle}>Variações do produto</span>
+                  <p className={styles.panelDescription}>
+                    Cadastre cada combinação disponível de cor e tamanho.
+                  </p>
+                </div>
+                {!expandedVariationForm && (
+                  <button
+                    type="button"
+                    className={styles.addVariationBtn}
+                    onClick={onOpenVariationForm}
+                  >
+                    <Plus size={18} />
+                    Adicionar variação
+                  </button>
+                )}
               </div>
 
               <div className={styles.form}>
-                <button
-                  type="button"
-                  className={styles.addVariationBtn}
-                  onClick={onOpenVariationForm}
-                >
-                  <Plus size={18} />
-                  Adicionar variação
-                </button>
-
                 {expandedVariationForm && (
                   <div className={styles.variationFormCard}>
                     <div className={styles.variationFormHeader}>
-                      <h3 className={styles.variationFormTitle}>
-                        {editingVariationIndex !== null
-                          ? "Editar variação"
-                          : "Nova variação"}
-                      </h3>
+                      <div>
+                        <span className={styles.variationFormEyebrow}>
+                          {editingVariationIndex !== null
+                            ? "Editando combinação"
+                            : "Nova combinação"}
+                        </span>
+                        <h3 className={styles.variationFormTitle}>
+                          {editingVariationIndex !== null
+                            ? "Editar variação"
+                            : "Adicionar variação"}
+                        </h3>
+                        <p className={styles.variationFormSubtitle}>
+                          Organize a identificação, o preço e o estoque desta
+                          opção do produto.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.closeVariationBtn}
+                        onClick={onCloseVariationForm}
+                        aria-label="Fechar formulário da variação"
+                      >
+                        <X size={18} />
+                      </button>
                     </div>
 
                     <div className={styles.variationFormBody}>
                       <div className={styles.variationCardContent}>
                         <div className={styles.variationImageColumn}>
                           <ImageGallery
+                            className={styles.variationGallery}
+                            label="Imagem da variação"
                             previews={variationImagePreviews}
                             selectedIndex={selectedVariationImageIndex}
                             imageNames={[]}
@@ -985,190 +1067,232 @@ export function ProductsDetails() {
                         </div>
 
                         <div className={styles.variationInfoColumn}>
-                          <div className={styles.variationInfoRow}>
-                            <div className={styles.field}>
-                              <span className={styles.label}>Cor</span>
-                              <div className={styles.colorSwatches}>
-                                {PRODUCT_COLORS.map((c) => (
-                                  <button
-                                    key={c.hex}
-                                    type="button"
-                                    title={c.label}
-                                    className={`${styles.colorSwatch} ${
-                                      variationColor === c.hex
-                                        ? styles.colorSwatchActive
-                                        : ""
-                                    }`}
-                                    style={{ background: c.hex }}
-                                    onClick={() =>
-                                      setVariationColor(
-                                        variationColor === c.hex ? "" : c.hex,
-                                      )
-                                    }
-                                  />
-                                ))}
-                                <div className={styles.colorPickerWrapper}>
-                                  <button
-                                    type="button"
-                                    title="Cor personalizada"
-                                    className={`${styles.colorSwatch} ${styles.colorSwatchCustom} ${
-                                      variationColor &&
-                                      !PRODUCT_COLORS.some(
-                                        (c) => c.hex === variationColor,
-                                      )
-                                        ? styles.colorSwatchActive
-                                        : ""
-                                    }`}
-                                    style={{
-                                      background:
+                          <section className={styles.variationSection}>
+                            <div className={styles.variationSectionHeader}>
+                              <span className={styles.variationStep}>1</span>
+                              <div>
+                                <strong>Características</strong>
+                                <small>Defina a cor e o tamanho da opção.</small>
+                              </div>
+                            </div>
+                            <div className={styles.variationInfoRow}>
+                              <div className={styles.field}>
+                                <span className={styles.label}>Cor *</span>
+                                <div className={styles.colorSwatches}>
+                                  {PRODUCT_COLORS.map((c) => (
+                                    <button
+                                      key={c.hex}
+                                      type="button"
+                                      title={c.label}
+                                      className={`${styles.colorSwatch} ${
+                                        variationColor === c.hex
+                                          ? styles.colorSwatchActive
+                                          : ""
+                                      }`}
+                                      style={{ background: c.hex }}
+                                      onClick={() =>
+                                        setVariationColor(
+                                          variationColor === c.hex ? "" : c.hex,
+                                        )
+                                      }
+                                    />
+                                  ))}
+                                  <div className={styles.colorPickerWrapper}>
+                                    <button
+                                      type="button"
+                                      title="Cor personalizada"
+                                      className={`${styles.colorSwatch} ${styles.colorSwatchCustom} ${
                                         variationColor &&
                                         !PRODUCT_COLORS.some(
                                           (c) => c.hex === variationColor,
                                         )
-                                          ? variationColor
-                                          : undefined,
-                                    }}
-                                    onClick={() =>
-                                      setShowVariationColorPicker((v) => !v)
-                                    }
-                                  >
-                                    {!(
-                                      variationColor &&
-                                      !PRODUCT_COLORS.some(
-                                        (c) => c.hex === variationColor,
-                                      )
-                                    ) && (
-                                      <span
-                                        className={styles.colorSwatchCustomIcon}
+                                          ? styles.colorSwatchActive
+                                          : ""
+                                      }`}
+                                      style={{
+                                        background:
+                                          variationColor &&
+                                          !PRODUCT_COLORS.some(
+                                            (c) => c.hex === variationColor,
+                                          )
+                                            ? variationColor
+                                            : undefined,
+                                      }}
+                                      onClick={() =>
+                                        setShowVariationColorPicker((v) => !v)
+                                      }
+                                    >
+                                      {!(
+                                        variationColor &&
+                                        !PRODUCT_COLORS.some(
+                                          (c) => c.hex === variationColor,
+                                        )
+                                      ) && (
+                                        <span
+                                          className={styles.colorSwatchCustomIcon}
+                                        >
+                                          +
+                                        </span>
+                                      )}
+                                    </button>
+                                    {showVariationColorPicker && (
+                                      <div
+                                        className={styles.colorPickerPopover}
                                       >
-                                        +
-                                      </span>
+                                        <input
+                                          type="color"
+                                          className={styles.colorPickerNative}
+                                          value={variationColor || "#000000"}
+                                          onChange={(e) =>
+                                            setVariationColor(e.target.value)
+                                          }
+                                        />
+                                        <button
+                                          type="button"
+                                          className={styles.colorPickerConfirm}
+                                          onClick={() =>
+                                            setShowVariationColorPicker(false)
+                                          }
+                                        >
+                                          OK
+                                        </button>
+                                      </div>
                                     )}
-                                  </button>
-                                  {showVariationColorPicker && (
-                                    <div className={styles.colorPickerPopover}>
-                                      <input
-                                        type="color"
-                                        className={styles.colorPickerNative}
-                                        value={variationColor || "#000000"}
-                                        onChange={(e) =>
-                                          setVariationColor(e.target.value)
-                                        }
-                                      />
-                                      <button
-                                        type="button"
-                                        className={styles.colorPickerConfirm}
-                                        onClick={() =>
-                                          setShowVariationColorPicker(false)
-                                        }
-                                      >
-                                        OK
-                                      </button>
-                                    </div>
-                                  )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <label className={styles.field}>
-                              <span className={styles.label}>Tamanho</span>
-                              <input
-                                className={styles.input}
-                                placeholder="Ex: M"
-                                value={variationSize}
-                                onChange={(event) =>
-                                  setVariationSize(event.target.value)
-                                }
-                              />
-                            </label>
-                          </div>
-
-                          <div className={styles.variationInfoRow}>
-                            <label className={styles.field}>
-                              <span className={styles.label}>
-                                Preço (opcional)
-                              </span>
-                              <input
-                                className={styles.input}
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                placeholder="0.00"
-                                value={variationPrice}
-                                onChange={(e) =>
-                                  setVariationPrice(e.target.value)
-                                }
-                              />
-                            </label>
-                            <label className={styles.field}>
-                              <span className={styles.label}>Estoque</span>
-                              <input
-                                className={styles.input}
-                                placeholder="0"
-                                value={variationStock}
-                                onChange={(e) =>
-                                  setVariationStock(e.target.value)
-                                }
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                              />
-                            </label>
-                            <div
-                              className={styles.field}
-                              style={{ minWidth: 180 }}
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  marginBottom: 4,
-                                }}
-                              >
-                                <span className={styles.label}>
-                                  Alerta de estoque
-                                </span>
-                                <button
-                                  type="button"
-                                  className={`${styles.toggleSwitch} ${variationLowStockAlertEnabled ? styles.toggleSwitchActive : ""}`}
-                                  onClick={() =>
-                                    setVariationLowStockAlertEnabled((v) => !v)
-                                  }
-                                  style={{ marginLeft: 8 }}
-                                >
-                                  <span className={styles.toggleSlider} />
-                                </button>
-                              </div>
-                              {variationLowStockAlertEnabled && (
+                              <label className={styles.field}>
+                                <span className={styles.label}>Tamanho *</span>
                                 <input
                                   className={styles.input}
-                                  placeholder="5"
-                                  value={variationLowStock}
-                                  onChange={(e) =>
-                                    setVariationLowStock(e.target.value)
+                                  placeholder="Ex: M, G ou 42"
+                                  value={variationSize}
+                                  onChange={(event) =>
+                                    setVariationSize(event.target.value)
                                   }
-                                  style={{ marginTop: 4 }}
+                                  maxLength={50}
                                 />
-                              )}
+                              </label>
                             </div>
-                          </div>
+                          </section>
 
-                          <label
-                            className={`${styles.field} ${styles.variationInfoFull}`}
-                          >
-                            <span className={styles.label}>Status</span>
-                            <select
-                              className={styles.select}
-                              value={variationIsActive ? "true" : "false"}
-                              onChange={(event) =>
-                                setVariationIsActive(
-                                  event.target.value === "true",
-                                )
-                              }
+                          <section className={styles.variationSection}>
+                            <div className={styles.variationSectionHeader}>
+                              <span className={styles.variationStep}>2</span>
+                              <div>
+                                <strong>Preço e estoque</strong>
+                                <small>
+                                  Controle o valor e a disponibilidade.
+                                </small>
+                              </div>
+                            </div>
+                            <div className={styles.variationStockRow}>
+                              <label className={styles.field}>
+                                <span className={styles.label}>
+                                  Preço (opcional)
+                                </span>
+                                <input
+                                  className={styles.input}
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="0,00"
+                                  value={variationPrice}
+                                  onChange={(e) =>
+                                    setVariationPrice(e.target.value)
+                                  }
+                                />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.label}>Estoque *</span>
+                                <input
+                                  className={styles.input}
+                                  placeholder="0"
+                                  value={variationStock}
+                                  onChange={(e) =>
+                                    setVariationStock(
+                                      e.target.value.replace(/\D/g, ""),
+                                    )
+                                  }
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                />
+                              </label>
+                              <div className={styles.alertField}>
+                                <div className={styles.alertFieldHeader}>
+                                  <div>
+                                    <span className={styles.label}>
+                                      Alerta de estoque
+                                    </span>
+                                    <span className={styles.fieldHint}>
+                                      Avise quando estiver acabando.
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className={`${styles.toggleSwitch} ${variationLowStockAlertEnabled ? styles.toggleSwitchActive : ""}`}
+                                    onClick={() =>
+                                      setVariationLowStockAlertEnabled(
+                                        (enabled) => {
+                                          if (!enabled && !variationLowStock) {
+                                            setVariationLowStock("5");
+                                          }
+                                          return !enabled;
+                                        },
+                                      )
+                                    }
+                                    aria-pressed={
+                                      variationLowStockAlertEnabled
+                                    }
+                                  >
+                                    <span className={styles.toggleSlider} />
+                                  </button>
+                                </div>
+                                {variationLowStockAlertEnabled && (
+                                  <input
+                                    className={styles.input}
+                                    placeholder="Estoque mínimo"
+                                    value={variationLowStock}
+                                    onChange={(e) =>
+                                      setVariationLowStock(
+                                        e.target.value.replace(/\D/g, ""),
+                                      )
+                                    }
+                                    inputMode="numeric"
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </section>
+
+                          <section className={styles.variationSection}>
+                            <div className={styles.variationSectionHeader}>
+                              <span className={styles.variationStep}>3</span>
+                              <div>
+                                <strong>Disponibilidade</strong>
+                                <small>
+                                  Defina se esta opção pode ser vendida.
+                                </small>
+                              </div>
+                            </div>
+                            <label
+                              className={`${styles.field} ${styles.statusField}`}
                             >
-                              <option value="true">Ativo</option>
-                              <option value="false">Inativo</option>
-                            </select>
-                          </label>
+                              <span className={styles.label}>Status</span>
+                              <select
+                                className={styles.select}
+                                value={variationIsActive ? "true" : "false"}
+                                onChange={(event) =>
+                                  setVariationIsActive(
+                                    event.target.value === "true",
+                                  )
+                                }
+                              >
+                                <option value="true">Ativo</option>
+                                <option value="false">Inativo</option>
+                              </select>
+                            </label>
+                          </section>
                         </div>
                       </div>
                     </div>
@@ -1194,10 +1318,23 @@ export function ProductsDetails() {
                   </div>
                 )}
 
+                {!expandedVariationForm && variations.length === 0 && (
+                  <div className={styles.variationEmptyState}>
+                    <div className={styles.variationEmptyIcon}>
+                      <Plus size={22} />
+                    </div>
+                    <strong>Nenhuma variação cadastrada</strong>
+                    <span>
+                      Adicione a primeira combinação de cor e tamanho deste
+                      produto.
+                    </span>
+                  </div>
+                )}
+
                 {variations.length > 0 && (
                   <div className={styles.variationsList}>
                     {variations.map((variation, index) => {
-                      const imgs = (variation.images || []) as any[];
+                      const imgs = variation.images ?? [];
                       const imageUrl = imgs.map((img) =>
                         img instanceof File
                           ? {
@@ -1213,6 +1350,14 @@ export function ProductsDetails() {
                               isPrimary: false,
                             },
                       );
+                      if (imageUrl.length === 0 && variation.imageUrl) {
+                        imageUrl.push({
+                          id: "",
+                          fileName: variation.name ?? "",
+                          url: variation.imageUrl,
+                          isPrimary: false,
+                        });
+                      }
                       return (
                         <div
                           key={index}
@@ -1280,7 +1425,7 @@ export function ProductsDetails() {
                               onClick={() => onEditVariation(index)}
                               aria-label="Editar variação"
                               style={{
-                                color: "#444",
+                                color: "var(--text-secondary)",
                                 background: "none",
                                 border: "none",
                                 cursor: "pointer",
@@ -1320,8 +1465,8 @@ export function ProductsDetails() {
                             }
                             lowStock={0}
                             available
-                            color={variation.color}
-                            size={variation.size}
+                            color={variation.color ?? undefined}
+                            size={variation.size ?? undefined}
                             status={
                               variation.isActive !== false
                                 ? ProductStatusEnum.ACTIVED

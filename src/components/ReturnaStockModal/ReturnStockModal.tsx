@@ -46,10 +46,12 @@ export function ReturnStockModal({ isOpen, onClose, item, onConfirm }: Props) {
 
   useEffect(() => {
     if (item) {
+      // Cada item selecionado inicia uma nova operação de devolução.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({ quantity: item.quantity, observation: "" });
       setError("");
     }
-  }, [item?.id]);
+  }, [item]);
 
   if (!isOpen || !item) return null;
 

@@ -17,7 +17,7 @@ import { ProductCategoryEnum } from "../../dtos/enums/product-category.enum";
 import StatCard from "../../components/StatCard/StatCard";
 import { CustomSelect } from "../../components/CustomSelect/CustomSelect";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../contexts/useAuth";
+import { getOutOfStockEntries } from "../../utils/productStock";
 
 type SortOption = "price-asc" | "price-desc" | "name-asc" | null;
 
@@ -33,8 +33,6 @@ export function OutOfStock() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const companyId = user?.companyId;
 
   useEffect(() => {
     if (location.state && location.state.id) {
@@ -89,19 +87,8 @@ export function OutOfStock() {
     }
   };
 
-  // Produtos sem estoque: stock === 0 OU todas as variações com stock === 0
   const outOfStockProducts = useMemo(() => {
-    return products.filter((p) => {
-      const mainStock = Number(p.stock ?? 0);
-      // Produto principal sem estoque
-      if (mainStock > 0) return false;
-      // Se tiver variações, TODAS precisam estar zeradas
-      if (Array.isArray(p.variations) && p.variations.length > 0) {
-        return p.variations.every((v) => Number(v.stock ?? 0) <= 0);
-      }
-      // Produto sem variações e sem estoque
-      return true;
-    });
+    return products.filter((product) => getOutOfStockEntries(product).length > 0);
   }, [products]);
 
   const filtered = useMemo(() => {
@@ -121,7 +108,10 @@ export function OutOfStock() {
       current = current.filter(
         (p) =>
           p.name.toLowerCase().includes(trimmed) ||
-          p.id.toLowerCase().includes(trimmed),
+          p.id.toLowerCase().includes(trimmed) ||
+          (p.variations ?? []).some((variation) =>
+            variation.id.toLowerCase().includes(trimmed),
+          ),
       );
     }
 
@@ -186,10 +176,8 @@ export function OutOfStock() {
       try {
         setLoading(true);
         setError(null);
-        if (companyId) {
-          const data = await ProductService.findAll(companyId);
-          setProducts(data);
-        }
+        const data = await ProductService.findAll();
+        setProducts(data);
       } catch (err) {
         console.error(err);
         setError("Erro ao carregar produtos");
@@ -355,7 +343,7 @@ export function OutOfStock() {
                       isPrimary: false,
                     })),
                 ]}
-                stock={p.stock}
+                stock={p.stock ?? undefined}
                 available
                 color={p.color}
                 colors={Array.from(

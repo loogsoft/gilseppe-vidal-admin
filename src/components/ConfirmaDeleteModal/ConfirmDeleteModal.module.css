@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--overlay-backdrop);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -24,6 +24,7 @@
 
 .modal {
   background: var(--surface);
+  border: 1px solid var(--border-default);
   border-radius: 20px;
   padding: 32px;
   width: 90%;

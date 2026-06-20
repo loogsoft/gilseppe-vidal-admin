@@ -1,6 +1,6 @@
 
 .miniMovWrap {
-  background: #fff;
+  background: var(--surface);
   border-radius: 8px;
   box-shadow: 0 1px 4px #0001;
   margin-top: 6px;
@@ -21,7 +21,7 @@
   font-size: 5px;
 }
 .miniMovTheadRow {
-  color: #94a3b8;
+  color: var(--text-muted);
   text-align: center;
 }
 .miniMovTable th, .miniMovTable td {
@@ -30,11 +30,11 @@
   text-align: center;
   vertical-align: middle;
   font-size: 3px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border-light);
 }
 .miniMovTable th {
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--text-muted);
   background: none;
 }
 .miniMovTable tr:last-child td {
@@ -44,19 +44,19 @@
   font-weight: 700;
 }
 .miniMovDate {
-  color: #cbd5e1;
+  color: var(--text-muted);
   font-size: 4px;
 }
 .miniMovAvatar {
   display: inline-block;
-  background: #f1f5f9;
+  background: var(--surface-muted);
   border-radius: 50%;
   width: 12px;
   height: 12px;
   text-align: center;
   line-height: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-secondary);
   margin-right: 2px;
   font-size: 5px;
 }
@@ -69,16 +69,16 @@
   font-size: 3px;
 }
 .miniMovFooter {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 5px;
   margin-top: 3px;
 }
 .previewWrap {
   display: flex;
-  border: 2px solid #eee;
+  border: 2px solid var(--border-default);
   border-radius: 14px;
   overflow: hidden;
-  background: #fafbfc;
+  background: var(--bg-primary);
   height: 210px;
   max-width: 320px;
   width: 100%;
@@ -87,12 +87,12 @@
 }
 .sidebar {
   width: 56px;
-  background: #fff;
+  background: var(--surface);
   padding: 6px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-right: 1.5px solid #f0f0f0;
+  border-right: 1.5px solid var(--border-default);
 }
 .logo {
   display: flex;
@@ -112,7 +112,7 @@
 .logoText {
   font-weight: 700;
   font-size: 6px;
-  color: #222;
+  color: var(--text-primary);
 }
 .menu {
   width: 100%;
@@ -133,7 +133,7 @@
   font-weight: 500;
 }
 .menuItem {
-  color: #888;
+  color: var(--text-muted);
   background: none;
 }
 .menuIcon {
@@ -159,7 +159,7 @@
   font-weight: 600;
   font-size: 7px;
   margin-right: 8px;
-  color: #222;
+  color: var(--text-primary);
 }
 .logoMini {
   font-size: 12px;
@@ -171,7 +171,7 @@
   margin-bottom: 8px;
 }
 .card {
-  background: #fff;
+  background: var(--surface);
   border-radius: 8px;
   box-shadow: 0 1px 4px #0001;
   padding: 5px 5px;
@@ -187,13 +187,13 @@
 }
 .cardLabel {
   font-size: 5px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 1px;
 }
 .cardValue {
   font-size: 5px;
   font-weight: 700;
-  color: #222;
+  color: var(--text-primary);
 }
 .salesPerformance {
   margin-top: 4px;
@@ -201,7 +201,7 @@
 .salesTitle {
   font-size: 5px;
   font-weight: 600;
-  color: #444;
+  color: var(--text-secondary);
   margin-bottom: 30px;
 }
 .salesChart {
@@ -213,6 +213,6 @@
 .salesBar {
   width: 7px;
   border-radius: 3px 3px 0 0;
-  background: #eee;
+  background: var(--border-default);
   transition: background 0.2s;
 }

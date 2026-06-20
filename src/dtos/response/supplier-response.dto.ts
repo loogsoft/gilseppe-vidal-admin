@@ -3,7 +3,6 @@ import type { SupplierStatus } from "../request/supplier-request.dto";
 export interface SupplierResponseDto {
   id: string;
   name: string;
-  companyId: string;
   category?: string;
   email?: string;
   phone?: string;

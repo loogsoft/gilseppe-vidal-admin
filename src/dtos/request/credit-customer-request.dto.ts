@@ -1,5 +1,4 @@
 export interface CreditCustomerRequestDto {
-  comapnyId: string;
   customerName: string;
   customerEmail: string;
   CPF: string;

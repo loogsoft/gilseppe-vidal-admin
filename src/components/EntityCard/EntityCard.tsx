@@ -19,6 +19,7 @@ import { FiUser } from "react-icons/fi";
 import type { CSSProperties } from "react";
 import type { ProductCategoryEnum } from "../../dtos/enums/product-category.enum";
 import type { ImageResponse } from "../../dtos/response/image-response.dto";
+import type { ProductVariationResponseDto } from "../../dtos/response/product-variation-response.dto";
 import { ProductStatusEnum } from "../../dtos/enums/product-status.enum";
 import { ArrowUpRight } from "lucide-react";
 import { ConfirmDeleteModal } from "../ConfirmaDeleteModal/ConfirmDeleteModal";
@@ -50,7 +51,7 @@ type ProductProps = BaseProps & {
   navigateTo: string;
   status: ProductStatusEnum | undefined;
   actionButton?: React.ReactNode;
-  variations?: any[];
+  variations?: ProductVariationResponseDto[];
 };
 
 type SupplierProps = BaseProps & {
@@ -111,6 +112,7 @@ export default function EntityCard(props: Props) {
   const navigate = useNavigate();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showVariations, setShowVariations] = useState(false);
 
   if (props.type === "creditCustomer") {
     const avatarStyle = props.avatarColor
@@ -126,9 +128,7 @@ export default function EntityCard(props: Props) {
             className={`${styles.avatar} ${styles.creditCustomerAvatar || ""}`}
             style={avatarStyle}
           >
-            <span className={styles.avatarText}>
-              <FiUser />
-            </span>
+            <span className={styles.creditCustomerInitials}>{props.initials}</span>
           </div>
           {props.onDelete ? (
             <div className={styles.cardActions}>
@@ -146,58 +146,91 @@ export default function EntityCard(props: Props) {
             </div>
           ) : null}
         </div>
-        <div className={styles.body}>
-          <div className={styles.nameRow}>
+        <div className={`${styles.body} ${styles.creditCustomerBody}`}>
+          <div className={`${styles.nameRow} ${styles.creditCustomerHeader}`}>
             <div className={styles.name}>{props.name}</div>
           </div>
           <div className={styles.category}>{props.category}</div>
           <div className={styles.creditCustomerMeta || ""}>
             {props.cpf && (
-              <div className={styles.metaItem}>
-                <span>CPF:</span> {props.cpf}
+              <div className={`${styles.metaItem} ${styles.creditCustomerMetaItem}`}>
+                <div className={styles.creditCustomerMetaContent}>
+                  <span className={styles.creditCustomerMetaLabel}>CPF</span>
+                  <span className={styles.creditCustomerMetaValue}>{props.cpf}</span>
+                </div>
               </div>
             )}
             {props.email && (
-              <div className={styles.metaItem}>
-                <FiMail className={styles.metaIcon} />
-                {props.email}
+              <div className={`${styles.metaItem} ${styles.creditCustomerMetaItem}`}>
+                <span className={styles.creditCustomerMetaIconWrap}>
+                  <FiMail className={styles.metaIcon} />
+                </span>
+                <div className={styles.creditCustomerMetaContent}>
+                  <span className={styles.creditCustomerMetaLabel}>E-mail</span>
+                  <span className={styles.creditCustomerMetaValue}>{props.email}</span>
+                </div>
               </div>
             )}
             {props.phone && (
-              <div className={styles.metaItem}>
-                <FiPhone className={styles.metaIcon} />
-                {props.phone}
+              <div className={`${styles.metaItem} ${styles.creditCustomerMetaItem}`}>
+                <span className={styles.creditCustomerMetaIconWrap}>
+                  <FiPhone className={styles.metaIcon} />
+                </span>
+                <div className={styles.creditCustomerMetaContent}>
+                  <span className={styles.creditCustomerMetaLabel}>Telefone</span>
+                  <span className={styles.creditCustomerMetaValue}>{props.phone}</span>
+                </div>
               </div>
             )}
             {props.location && (
-              <div className={styles.metaItem}>
-                <FiMapPin className={styles.metaIcon} />
-                {props.location}
+              <div className={`${styles.metaItem} ${styles.creditCustomerMetaItem}`}>
+                <span className={styles.creditCustomerMetaIconWrap}>
+                  <FiMapPin className={styles.metaIcon} />
+                </span>
+                <div className={styles.creditCustomerMetaContent}>
+                  <span className={styles.creditCustomerMetaLabel}>Endereço</span>
+                  <span className={styles.creditCustomerMetaValue}>{props.location}</span>
+                </div>
               </div>
             )}
             {props.number && (
-              <div className={styles.metaItem}>
-                <span>Número:</span> {props.number}
+              <div className={`${styles.metaItem} ${styles.creditCustomerMetaItem}`}>
+                <div className={styles.creditCustomerMetaContent}>
+                  <span className={styles.creditCustomerMetaLabel}>Número</span>
+                  <span className={styles.creditCustomerMetaValue}>{props.number}</span>
+                </div>
               </div>
             )}
             {props.neighborhood && (
-              <div className={styles.metaItem}>
-                <span>Bairro:</span> {props.neighborhood}
+              <div className={`${styles.metaItem} ${styles.creditCustomerMetaItem}`}>
+                <div className={styles.creditCustomerMetaContent}>
+                  <span className={styles.creditCustomerMetaLabel}>Bairro</span>
+                  <span className={styles.creditCustomerMetaValue}>{props.neighborhood}</span>
+                </div>
               </div>
             )}
             {props.city && (
-              <div className={styles.metaItem}>
-                <span>Cidade:</span> {props.city}
+              <div className={`${styles.metaItem} ${styles.creditCustomerMetaItem}`}>
+                <div className={styles.creditCustomerMetaContent}>
+                  <span className={styles.creditCustomerMetaLabel}>Cidade</span>
+                  <span className={styles.creditCustomerMetaValue}>{props.city}</span>
+                </div>
               </div>
             )}
             {props.state && (
-              <div className={styles.metaItem}>
-                <span>Estado:</span> {props.state}
+              <div className={`${styles.metaItem} ${styles.creditCustomerMetaItem}`}>
+                <div className={styles.creditCustomerMetaContent}>
+                  <span className={styles.creditCustomerMetaLabel}>Estado</span>
+                  <span className={styles.creditCustomerMetaValue}>{props.state}</span>
+                </div>
               </div>
             )}
             {props.zipCode && (
-              <div className={styles.metaItem}>
-                <span>CEP:</span> {props.zipCode}
+              <div className={`${styles.metaItem} ${styles.creditCustomerMetaItem}`}>
+                <div className={styles.creditCustomerMetaContent}>
+                  <span className={styles.creditCustomerMetaLabel}>CEP</span>
+                  <span className={styles.creditCustomerMetaValue}>{props.zipCode}</span>
+                </div>
               </div>
             )}
           </div>
@@ -234,7 +267,6 @@ export default function EntityCard(props: Props) {
       : undefined;
     const statusLabel = props.isActive ? "ATIVO" : "INATIVO";
     const images = props.imageUrl;
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const hasMultipleImages = images.length > 1;
     const supplierImageUrl =
       images.length > 0 ? images[currentImageIndex].url : "";
@@ -388,17 +420,9 @@ export default function EntityCard(props: Props) {
 
   const images = props.imageUrl || [];
   const hasMultipleImages = images.length > 1;
-  const productImageUrl = images[currentImageIndex]?.url || "";
-
-  // Sempre tratar como detalhado: se não houver variations, cria uma variação "fake" com os dados principais
-  let variations: any[] = [];
-  if (
-    Array.isArray((props as any).variations) &&
-    (props as any).variations.length > 0
-  ) {
-    variations = (props as any).variations;
-  }
-  const [showVariations, setShowVariations] = useState(false);
+  const currentImage = images[currentImageIndex];
+  const productImageUrl = currentImage?.url || "";
+  const variations = props.variations ?? [];
 
   const handlePrevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -409,11 +433,47 @@ export default function EntityCard(props: Props) {
     e.stopPropagation();
     setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
-  // Verifica se o produto está esgotado (sem variações) ou se todas as variações estão esgotadas
-  const isSoldOut =
-    Array.isArray(variations) && variations.length > 0
-      ? variations.every((v) => (v.stock ?? 0) === 0)
-      : (props.stock ?? 0) === 0;
+  const activeVariations = Array.isArray(variations)
+    ? variations.filter((variation) => variation.isActive !== false)
+    : [];
+  const hasVariations = Array.isArray(variations) && variations.length > 0;
+  const isSoldOut = hasVariations
+    ? activeVariations.length === 0 ||
+      activeVariations.every((variation) => Number(variation.stock ?? 0) <= 0)
+    : Number(props.stock ?? 0) <= 0;
+  const currentVariation = hasVariations
+    ? activeVariations.find(
+        (variation) =>
+          currentImage?.id === variation.id ||
+          (!currentImage?.id &&
+            Boolean(variation.imageUrl) &&
+            currentImage?.url === variation.imageUrl),
+      )
+    : undefined;
+  const currentVariationStock = Number(currentVariation?.stock ?? 0);
+  const currentVariationLowStock = Number(currentVariation?.lowStock ?? 0);
+  const currentVariationIsLow = Boolean(
+    currentVariation?.activeLowStock === true &&
+      currentVariationLowStock > 0 &&
+      currentVariationStock > 0 &&
+      currentVariationStock <= currentVariationLowStock,
+  );
+  const simpleProductIsLow =
+    !hasVariations &&
+    Number(props.lowStock ?? 0) > 0 &&
+    Number(props.stock ?? 0) > 0 &&
+    Number(props.stock ?? 0) <= Number(props.lowStock ?? 0);
+  const stockBadge = !isSoldOut
+    ? hasVariations
+      ? currentVariation && currentVariationStock <= 0
+        ? "VARIAÇÃO ESGOTADA"
+        : currentVariationIsLow
+          ? "ESTOQUE BAIXO"
+          : null
+      : simpleProductIsLow
+        ? "ESTOQUE BAIXO"
+        : null
+    : null;
 
   return (
     <div
@@ -442,10 +502,8 @@ export default function EntityCard(props: Props) {
     >
       <div className={`${styles.media} ${styles.productMedia}`}>
         {!isCreditCustomer &&
-        props.stock !== undefined &&
-        props.stock > 0 &&
-        props.stock <= props.lowStock ? (
-          <div className={styles.lowStock}>ESTOQUE BAIXO</div>
+        stockBadge ? (
+          <div className={styles.lowStock}>{stockBadge}</div>
         ) : null}
         {!isCreditCustomer && isSoldOut ? (
           <div className={styles.zeroStockOverlay}>
@@ -598,7 +656,7 @@ export default function EntityCard(props: Props) {
               </button>
               {showVariations && (
                 <div className={styles.variationList} id="variation-list">
-                  {variations.map((v: any, i: number) => (
+                  {variations.map((v, i) => (
                     <div className={styles.variationCard} key={v.id || i}>
                       <div className={styles.variationCardRow}>
                         <span className={styles.variationLabel}>
@@ -608,21 +666,16 @@ export default function EntityCard(props: Props) {
                           </span>
                         </span>
                         <span className={styles.variationColors}>
-                          {(v.colors &&
-                          Array.isArray(v.colors) &&
-                          v.colors.length > 0
-                            ? v.colors
-                            : v.color
-                              ? [v.color]
-                              : []
-                          ).map((color: string, idx: number) => (
+                          {(v.color ? [v.color] : []).map(
+                            (color: string, idx: number) => (
                             <span
                               key={idx}
                               className={styles.variationColorDot}
                               style={{ background: color || "#ccc" }}
                               title={color || ""}
                             />
-                          ))}
+                            ),
+                          )}
                         </span>
                       </div>
                       <div className={styles.variationCardRow}>

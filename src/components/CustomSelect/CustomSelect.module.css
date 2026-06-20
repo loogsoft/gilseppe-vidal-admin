@@ -22,7 +22,7 @@
 }
 
 .trigger:hover {
-  border-color: #000;
+  border-color: var(--control-hover-border);
 }
 
 .trigger:focus,
@@ -95,7 +95,7 @@
 }
 
 .option:hover {
-  background: var(--bg-primary);
+  background: var(--surface-muted);
   color: var(--text-primary);
 }
 

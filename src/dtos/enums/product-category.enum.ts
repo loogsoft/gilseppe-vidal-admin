@@ -13,6 +13,7 @@ export const ProductCategoryEnum = {
   BELT: "Cinto",
   WALLET: "Carteira",
   SUNGLASSES: "Óculos",
+  PHONE: "Fone",
 } as const;
 export type ProductCategoryEnum =
   (typeof ProductCategoryEnum)[keyof typeof ProductCategoryEnum];

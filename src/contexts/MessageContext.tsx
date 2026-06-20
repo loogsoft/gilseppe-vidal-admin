@@ -1,55 +1,45 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
+import type { MessageRequestDto } from "../dtos/request/message-request.dto";
 import { MessageService } from "../service/Message.service";
 import { ProductService } from "../service/Product.service";
 import { toast } from "react-toastify";
-import { useAuth } from "./useAuth";
 
-import type { MessageRequestDto } from "../dtos/request/message-request.dto";
+import {
+  getLowStockEntries,
+  getOutOfStockEntries,
+} from "../utils/productStock";
+import {
+  playNotificationSound,
+  unlockNotificationSound,
+} from "../utils/notificationSound";
 
-type MessageContextValue = {
-  messageCount: number;
-  refreshMessageCount: () => void;
-  decrementMessageCount: () => void;
-  clearMessageCount: () => void;
-  checkStockAndNotify: () => Promise<void>;
-  createMessage: (dto: MessageRequestDto) => Promise<void>;
-};
-
-
-const MessageContext = createContext<MessageContextValue | undefined>(
-  undefined,
-);
+import { MessageContext } from "./message-context";
 
 
 export function MessageProvider({ children }: { children: ReactNode }) {
   const [messageCount, setMessageCount] = useState(0);
   const shownIds = useRef<Set<string>>(new Set());
   const shownKeys = useRef<Set<string>>(new Set()); // productId-type
-  const { user } = useAuth();
-  const companyId = user?.companyId;
 
   const refreshMessageCount = useCallback(() => {
-    if (companyId)
-      MessageService.findAll(companyId)
-        .then((data) => {
-          setMessageCount(data.length);
-          data.forEach((m) => {
-            shownIds.current.add(String(m.id));
-            if (m.productId && m.type) {
-              shownKeys.current.add(`${m.productId}-${m.type}`);
-            }
-          });
-        })
-        .catch(() => {});
-  }, [companyId]);
+    MessageService.findAll()
+      .then((data) => {
+        setMessageCount(data.length);
+        data.forEach((m) => {
+          shownIds.current.add(String(m.id));
+          if (m.productId && m.type) {
+            shownKeys.current.add(`${m.productId}-${m.type}`);
+          }
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   const decrementMessageCount = useCallback(() => {
     setMessageCount((prev) => Math.max(0, prev - 1));
@@ -77,146 +67,135 @@ export function MessageProvider({ children }: { children: ReactNode }) {
         } else {
           toast.success("Mensagem criada com sucesso!");
         }
+        void playNotificationSound();
       }
       refreshMessageCount();
-    } catch (err) {
+    } catch {
       toast.error("Erro ao criar mensagem");
     }
   }, [refreshMessageCount]);
 
   const checkStockAndNotify = useCallback(async () => {
-    if (companyId)
-      try {
-        const products = await ProductService.findAll(companyId);
-        for (const p of products) {
-          const primaryImage = (p.images || []).find(
-            (img: any) => img.isPrimary,
-          );
-          const imageUrl = primaryImage?.url || p.images?.[0]?.url || "";
-          if (Array.isArray(p.variations) && p.variations.length > 0) {
-            // Se tem variações, só verifica as variações e nunca cria mensagem para o produto principal
-            for (const v of p.variations) {
-              const varImage = v.imageUrl || imageUrl;
-              const varName =
-                `${p.name} - ${v.color || ""} ${v.size || ""}`.trim();
-              const varStock = Math.max(0, Number(v.stock ?? 0));
-              // Evita duplicidade: só cria se não existir mensagem igual
-              if (Number(v.stock ?? 0) <= 0) {
-                const key = `${v.id}-esgotado`;
-                if (!shownKeys.current.has(key)) {
-                  shownKeys.current.add(key);
-                  try {
-                    const created = await MessageService.create({
-                      productId: v.id,
-                      name: varName,
-                      url: varImage,
-                      type: "esgotado",
-                      description: `A variação "${v.color || ""} ${v.size || ""}" do produto "${p.name}" foi esgotada. Estoque zerado. Realize a reposição imediatamente.`,
-                      companyId,
-                    });
-                    if (
-                      created &&
-                      created.id &&
-                      !shownIds.current.has(String(created.id))
-                    ) {
-                      shownIds.current.add(String(created.id));
-                      // toast removido: exibe apenas ao criar manualmente
-                    }
-                  } catch {}
-                }
-              }
-              if (
-                Number(v.stock ?? 0) > 0 &&
-                varStock < Number(v.lowStock ?? 0)
-              ) {
-                const key = `${v.id}-estoque_baixo`;
-                if (!shownKeys.current.has(key)) {
-                  shownKeys.current.add(key);
-                  try {
-                    const created = await MessageService.create({
-                      productId: v.id,
-                      name: varName,
-                      url: varImage,
-                      type: "estoque_baixo",
-                      description: `Alerta de estoque baixo: a variação "${v.color || ""} ${v.size || ""}" do produto "${p.name}" possui apenas ${varStock} unidades restantes. O limite de alerta é ${p.lowStock}. Realize a reposição.`,
-                      companyId,
-                    });
-                    if (
-                      created &&
-                      created.id &&
-                      !shownIds.current.has(String(created.id))
-                    ) {
-                      shownIds.current.add(String(created.id));
-                      // toast removido: exibe apenas ao criar manualmente
-                    }
-                  } catch {}
-                }
-              }
-            }
-          } else {
-            // Só verifica o produto principal se NÃO houver variações
-            const mainStock = Math.max(0, p.stock ?? 0);
-            if (Number(p.stock ?? 0) <= 0) {
-              const key = `${p.id}-esgotado`;
-              if (!shownKeys.current.has(key)) {
-                shownKeys.current.add(key);
-                try {
-                  const created = await MessageService.create({
-                    productId: p.id,
-                    name: p.name,
-                    url: imageUrl,
-                    type: "esgotado",
-                    description: `O produto "${p.name}" foi esgotado. Estoque zerado. Realize a reposição imediatamente.`,
-                    companyId,
-                  });
-                  if (
-                    created &&
-                    created.id &&
-                    !shownIds.current.has(String(created.id))
-                  ) {
-                    shownIds.current.add(String(created.id));
-                    // toast removido: exibe apenas ao criar manualmente
-                  }
-                } catch {}
-              }
-            } else if (
-              Number(p.stock ?? 0) > 0 &&
-              Number(p.stock ?? 0) < Number(p.lowStock ?? 0)
+    try {
+      const [products, currentMessages] = await Promise.all([
+        ProductService.findAll(),
+        MessageService.findAll(),
+      ]);
+      const knownStockItemIds = new Set<string>();
+      const desiredAlertTypes = new Map<string, MessageRequestDto["type"]>();
+
+      currentMessages.forEach((message) => {
+        shownIds.current.add(String(message.id));
+        shownKeys.current.add(`${message.productId}-${message.type}`);
+      });
+
+      for (const p of products) {
+        knownStockItemIds.add(p.id);
+        (p.variations ?? []).forEach((variation) =>
+          knownStockItemIds.add(variation.id),
+        );
+        const primaryImage = (p.images || []).find((img) => img.isPrimary);
+        const productImage = primaryImage?.url || p.images?.[0]?.url || "";
+        const outOfStockEntries = getOutOfStockEntries(p);
+        const outOfStockIds = new Set(
+          outOfStockEntries.map((entry) => entry.id),
+        );
+        const alertEntries = [
+          ...outOfStockEntries,
+          ...getLowStockEntries(p),
+        ];
+
+        for (const entry of alertEntries) {
+          const variation = entry.variation;
+          const isOutOfStock = outOfStockIds.has(entry.id);
+          const type = isOutOfStock ? "esgotado" : "estoque_baixo";
+          const key = `${entry.id}-${type}`;
+          desiredAlertTypes.set(entry.id, type);
+
+          if (shownKeys.current.has(key)) continue;
+          shownKeys.current.add(key);
+
+          const variationLabel = variation
+            ? `${variation.color || ""} ${variation.size || ""}`.trim()
+            : "";
+          const name = variation
+            ? `${p.name} - ${variationLabel}`
+            : p.name;
+          const url = variation?.imageUrl || productImage;
+          const description = variation
+            ? isOutOfStock
+              ? `A variação "${variationLabel}" do produto "${p.name}" foi esgotada. Estoque zerado. Realize a reposição imediatamente.`
+              : `Alerta de estoque baixo: a variação "${variationLabel}" do produto "${p.name}" possui apenas ${entry.stock} unidades restantes. O limite de alerta é ${entry.lowStock}. Realize a reposição.`
+            : isOutOfStock
+              ? `O produto "${p.name}" foi esgotado. Estoque zerado. Realize a reposição imediatamente.`
+              : `Alerta de estoque baixo: o produto "${p.name}" possui apenas ${entry.stock} unidades restantes. O limite de alerta é ${entry.lowStock}. Realize a reposição.`;
+
+          try {
+            const created = await MessageService.create({
+              productId: entry.id,
+              name,
+              url,
+              type,
+              description,
+            });
+            if (
+              created?.id &&
+              !shownIds.current.has(String(created.id))
             ) {
-              const key = `${p.id}-estoque_baixo`;
-              if (!shownKeys.current.has(key)) {
-                shownKeys.current.add(key);
-                try {
-                  const created = await MessageService.create({
-                    productId: p.id,
-                    name: p.name,
-                    url: imageUrl,
-                    type: "estoque_baixo",
-                    description: `Alerta de estoque baixo: o produto "${p.name}" possui apenas ${mainStock} unidades restantes. O limite de alerta é ${p.lowStock}. Realize a reposição.`,
-                    companyId,
-                  });
-                  if (
-                    created &&
-                    created.id &&
-                    !shownIds.current.has(String(created.id))
-                  ) {
-                    shownIds.current.add(String(created.id));
-                    // toast removido: exibe apenas ao criar manualmente
-                  }
-                } catch {}
-              }
+              shownIds.current.add(String(created.id));
             }
+            if (type === "esgotado") {
+              toast.error(description);
+            } else {
+              toast.warning(description);
+            }
+            void playNotificationSound();
+          } catch {
+            shownKeys.current.delete(key);
           }
         }
-      } catch {}
+      }
+
+      const existingMessages = await MessageService.findAll();
+      for (const message of existingMessages) {
+        if (!knownStockItemIds.has(message.productId)) continue;
+        if (desiredAlertTypes.get(message.productId) === message.type) continue;
+
+        try {
+          await MessageService.remove(String(message.id));
+          shownIds.current.delete(String(message.id));
+          shownKeys.current.delete(`${message.productId}-${message.type}`);
+        } catch {
+          // Mantém o alerta local para tentar a sincronização novamente.
+        }
+      }
+    } catch {
+      // A próxima verificação refaz a sincronização completa do estoque.
+    }
     refreshMessageCount();
-  }, [refreshMessageCount, companyId]);
+  }, [refreshMessageCount]);
 
   useEffect(() => {
     refreshMessageCount();
-    const interval = setInterval(refreshMessageCount, 30000);
+    const interval = setInterval(() => {
+      void checkStockAndNotify();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [refreshMessageCount]);
+  }, [checkStockAndNotify, refreshMessageCount]);
+
+  useEffect(() => {
+    const unlockSound = () => {
+      void unlockNotificationSound();
+    };
+
+    window.addEventListener("pointerdown", unlockSound, { once: true });
+    window.addEventListener("keydown", unlockSound, { once: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", unlockSound);
+      window.removeEventListener("keydown", unlockSound);
+    };
+  }, []);
 
   return (
     <MessageContext.Provider
@@ -232,11 +211,4 @@ export function MessageProvider({ children }: { children: ReactNode }) {
       {children}
     </MessageContext.Provider>
   );
-}
-
-export function useMessageContext() {
-  const ctx = useContext(MessageContext);
-  if (!ctx)
-    throw new Error("useMessageContext must be used within MessageProvider");
-  return ctx;
 }

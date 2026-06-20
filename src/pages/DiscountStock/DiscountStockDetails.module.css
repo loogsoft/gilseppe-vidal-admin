@@ -55,7 +55,7 @@
 .statusPill {
   font-size: 11px;
   font-weight: 600;
-  color: #0b0b0b;
+  color: var(--text-primary);
   background: var(--highlight);
   padding: 6px 10px;
   border-radius: 999px;
@@ -92,9 +92,9 @@
   height: 40px;
   padding: 0 18px;
   border-radius: 12px;
-  border: 1px solid rgba(239, 68, 68, 0.22);
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
+  border: 1px solid color-mix(in srgb, var(--status-danger) 28%, transparent);
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
   cursor: pointer;
   font-weight: 600;
   font-size: 13px;
@@ -343,9 +343,9 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.7px;
-  color: #0f766e;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: var(--status-success);
+  background: var(--status-success-bg);
+  border: 1px solid color-mix(in srgb, var(--status-success) 28%, transparent);
   padding: 6px 10px;
   border-radius: 999px;
 }
@@ -425,15 +425,15 @@
 
 .addressLine3 {
   font-size: 12px;
-  color: rgba(29, 31, 35, 0.6);
+  color: var(--text-muted);
 }
 
 .paidPill {
   font-size: 11px;
   font-weight: 1000;
-  color: #0f766e;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: var(--status-success);
+  background: var(--status-success-bg);
+  border: 1px solid color-mix(in srgb, var(--status-success) 28%, transparent);
   padding: 6px 10px;
   border-radius: 999px;
 }
@@ -480,8 +480,8 @@
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  border: 2px solid rgba(17, 17, 17, 0.2);
-  background: rgba(17, 17, 17, 0.05);
+  border: 2px solid var(--border-default);
+  background: var(--surface-muted);
   z-index: 2;
 }
 
@@ -502,8 +502,8 @@
 .tlDotPending {
   width: 8px;
   height: 8px;
-  border-color: rgba(17, 17, 17, 0.18);
-  background: rgba(17, 17, 17, 0.06);
+  border-color: var(--border-default);
+  background: var(--surface-muted);
 }
 
 .tlLine {
@@ -518,7 +518,7 @@
 }
 
 .tlLinePending {
-  background: rgba(17, 17, 17, 0.15);
+  background: var(--border-default);
 }
 
 .tlContent {

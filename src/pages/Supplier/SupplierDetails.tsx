@@ -5,7 +5,6 @@ import { SupplierService } from "../../service/Supplier.service";
 import { Save } from "lucide-react";
 import { ButtonBack } from "../../components/ButtonBack/ButtonBack";
 import { ImageGallery } from "../../components/ImageGallery/ImageGallery";
-import { useAuth } from "../../contexts/useAuth";
 // import type { SupplierStatus } from "../../dtos/request/supplier-request.dto";
 
 export function SupplierDetails() {
@@ -46,9 +45,6 @@ export function SupplierDetails() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [imageNames, setImageNames] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const { user } = useAuth();
-  const companyId = user?.companyId;
-  
   const onPickImages = () => {
     fileInputRef.current?.click();
   };
@@ -136,8 +132,6 @@ export function SupplierDetails() {
     if (saving) return;
     const formData = new FormData();
     const safeName = (name ?? "").toString().trim();
-    // eslint-disable-next-line no-console
-    console.log("Enviando name:", safeName, "length:", safeName.length);
     formData.append("name", safeName);
     formData.append("category", String(category ?? ""));
     formData.append("email", String(email ?? ""));
@@ -145,7 +139,6 @@ export function SupplierDetails() {
     formData.append("location", String(location ?? ""));
     formData.append("status", String(status ?? ""));
     formData.append("avatarColor", String(avatarColor ?? ""));
-    formData.append("companyId", String(companyId ?? ""));
     imageFiles.forEach((file) => {
       formData.append("image", file);
     });

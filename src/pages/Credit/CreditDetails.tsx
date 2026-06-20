@@ -1,3 +1,17 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import styles from "./CreditDetails.module.css";
+import {
+  BadgeCheck,
+  Mail,
+  MapPin,
+  Phone,
+  Save,
+  UserRound,
+} from "lucide-react";
+import { ButtonBack } from "../../components/ButtonBack/ButtonBack";
+import { CreditCustomerService } from "../../service/Credit-customer.service";
+
 function phoneMask(value: string): string {
   if (!value) return "";
   value = value.replace(/\D/g, "");
@@ -31,58 +45,13 @@ function cepMask(value: string): string {
 
   return value.replace(/^(\d{5})(\d)/, "$1-$2");
 }
-import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import styles from "./CreditDetails.module.css";
-import { Save } from "lucide-react";
-import { ImageGallery } from "../../components/ImageGallery/ImageGallery";
-import { ButtonBack } from "../../components/ButtonBack/ButtonBack";
-import { CreditCustomerService } from "../../service/Credit-customer.service";
-import { useAuth } from "../../contexts/useAuth";
 
 export function CreditDetails() {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [imageNames, setImageNames] = useState<string[]>([]);
-  // Removido imageFiles/setImageFiles pois não são usados
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const { user } = useAuth();
-  const companyId = user?.companyId;
-
-  const onPickImages = () => {
-    fileInputRef.current?.click();
-  };
-
-  const onImagesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    if (!files.length) return;
-
-    setImageNames((prev) => [...prev, ...files.map((file) => file.name)]);
-    // removido setImageFiles
-
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreviews((prev) => [...prev, e.target?.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
-
-    event.target.value = "";
-  };
-
-  const onRemoveImage = (index: number) => {
-    setImageNames((prev) => prev.filter((_, i) => i !== index));
-    // removido setImageFiles
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-    if (selectedImageIndex >= imagePreviews.length - 1) {
-      setSelectedImageIndex(Math.max(0, imagePreviews.length - 2));
-    }
-  };
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
   const isEdit = !!id;
   const [saving, setSaving] = useState(false);
+  const [loadingCustomer, setLoadingCustomer] = useState(isEdit);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [CPF, setCPF] = useState("");
@@ -93,17 +62,39 @@ export function CreditDetails() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zipCode, setZipCode] = useState("");
-  // const [totalAmounts, setTotalAmounts] = useState("");
-  // const [date, setDate] = useState("");
 
   useEffect(() => {
-    // Aqui você pode buscar os dados do crediário para edição se necessário
-    // Exemplo:
-    // if (isEdit && id) { ...busca crediário e preenche os campos... }
-  }, [id, isEdit]);
+    if (!id) return;
 
-  const onSave = async () => {
-    if (saving) return;
+    const loadCustomer = async () => {
+      try {
+        setLoadingCustomer(true);
+        const customer = await CreditCustomerService.findOne(id);
+        setCustomerName(customer.customerName ?? "");
+        setCustomerEmail(customer.customerEmail ?? "");
+        setCPF(customer.CPF ?? "");
+        setPhone(customer.phone ?? "");
+        setRoad(customer.road ?? "");
+        setNumber(customer.number ?? "");
+        setNeighborhood(customer.neighborhood ?? "");
+        setCity(customer.city ?? "");
+        setState(customer.state ?? "");
+        setZipCode(customer.zipCode ?? "");
+      } catch (error) {
+        console.error(error);
+        alert("Não foi possível carregar os dados do cliente.");
+        navigate(-1);
+      } finally {
+        setLoadingCustomer(false);
+      }
+    };
+
+    void loadCustomer();
+  }, [id, navigate]);
+
+  const onSave = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    if (saving || loadingCustomer) return;
     if (!customerName.trim()) {
       alert("Nome do cliente é obrigatório");
       return;
@@ -133,7 +124,6 @@ export function CreditDetails() {
       alert("Preencha todos os campos de endereço");
       return;
     }
-    // Monta o payload conforme o DTO de request (sem o campo date)
     const payload = {
       customerName: customerName.trim(),
       customerEmail: customerEmail.trim(),
@@ -144,176 +134,286 @@ export function CreditDetails() {
       neighborhood: neighborhood.trim(),
       city: city.trim(),
       state: state.trim(),
-      zipCode: zipCode.trim(),
-      comapnyId: companyId || ""
+      zipCode: zipCode.replace(/\D/g, ""),
     };
     try {
       setSaving(true);
-      await CreditCustomerService.create(payload);
+      if (isEdit && id) {
+        await CreditCustomerService.update(id, payload);
+      } else {
+        await CreditCustomerService.create(payload);
+      }
       navigate(-1);
     } finally {
       setSaving(false);
     }
   };
 
-  const actionLabel = isEdit ? "Salvar alterações" : "Cadastrar crediário";
+  const actionLabel = isEdit ? "Salvar alterações" : "Cadastrar cliente";
   const loadingLabel = isEdit ? "Salvando..." : "Cadastrando...";
+  const customerLabel = customerName.trim() || "Novo cliente";
+  const customerInitials = customerLabel
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const customerLocation = [city.trim(), state.trim()]
+    .filter(Boolean)
+    .join(" • ");
+  const customerAddress = [
+    road.trim(),
+    number.trim(),
+    neighborhood.trim(),
+    customerLocation,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className={styles.page}>
-      <div className={styles.top}>
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <ButtonBack />
-          <div>
-            <h1 className={styles.title}>
-              {isEdit ? "Editar crediário" : "Cadastro de crediário"}
-            </h1>
-            <p className={styles.subtitle}>
-              {isEdit
-                ? "Atualize as informações do crediário."
-                : "Preencha as informações do crediário."}
-            </p>
+      <div className={styles.shell}>
+        <header className={styles.top}>
+          <div className={styles.heroContent}>
+            <ButtonBack />
+            <div className={styles.heroText}>
+              <span className={styles.eyebrow}>Crediários / Clientes</span>
+              <h1 className={styles.title}>
+                {isEdit ? "Editar cliente" : "Novo cliente"}
+              </h1>
+              <p className={styles.subtitle}>
+                {isEdit
+                  ? "Atualize as informações pessoais e o endereço cadastrado."
+                  : "Cadastre os dados necessários para abrir um novo crediário."}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className={styles.topActions}>
-          <button
-            className={styles.discard}
-            type="button"
-            onClick={() => navigate(-1)}
-          >
-            Cancelar
-          </button>
-          <button
-            className={styles.save}
-            type="button"
-            onClick={onSave}
-            disabled={saving}
-          >
-            <Save size={16} />
-            {saving ? loadingLabel : actionLabel}
-          </button>
-        </div>
-      </div>
-      <div className={styles.content}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          style={{ display: "none" }}
-          onChange={onImagesSelected}
-        />
-        <aside className={styles.imageGalleryAside}>
-          <ImageGallery
-            previews={imagePreviews}
-            selectedIndex={selectedImageIndex}
-            imageNames={imageNames}
-            onSelectImage={setSelectedImageIndex}
-            onAddImages={onPickImages}
-            onRemoveImage={onRemoveImage}
-          />
-        </aside>
-        <div className={styles.formColumn} style={{ marginBottom: 40 }}>
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}>
-              <span className={styles.panelTitle}>
-                Informações do crediário
+          <div className={styles.topActions}>
+            <button
+              className={styles.discard}
+              type="button"
+              onClick={() => navigate(-1)}
+            >
+              Cancelar
+            </button>
+            <button
+              className={styles.save}
+              type="submit"
+              form="credit-customer-form"
+              disabled={saving || loadingCustomer}
+            >
+              {saving || loadingCustomer ? (
+                <span className={styles.spinner} />
+              ) : (
+                <Save size={16} />
+              )}
+              {loadingCustomer
+                ? "Carregando..."
+                : saving
+                  ? loadingLabel
+                  : actionLabel}
+            </button>
+          </div>
+        </header>
+
+        <section className={styles.profileCard}>
+          <div className={styles.avatar} aria-hidden="true">
+            {customerInitials}
+          </div>
+
+          <div className={styles.profileMain}>
+            <div className={styles.profileHeading}>
+              <h2 className={styles.profileName}>{customerLabel}</h2>
+              <span className={styles.statusBadge}>
+                <BadgeCheck size={14} />
+                {isEdit ? "Cliente cadastrado" : "Novo cadastro"}
               </span>
             </div>
-            <div className={styles.form}>
-              <label className={styles.field}>
-                <span className={styles.label}>Nome do cliente</span>
+
+            <div className={styles.profileMeta}>
+              <span className={styles.metaItem}>
+                <Mail size={15} />
+                {customerEmail.trim() || "E-mail não informado"}
+              </span>
+              <span className={styles.metaItem}>
+                <Phone size={15} />
+                {phoneMask(phone) || "Telefone não informado"}
+              </span>
+              <span className={styles.metaItem}>
+                <MapPin size={15} />
+                {customerAddress || "Endereço não informado"}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <form
+          id="credit-customer-form"
+          className={styles.formCard}
+          onSubmit={onSave}
+        >
+          <section className={styles.formSection}>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionIcon}>
+                <UserRound size={18} />
+              </span>
+              <div>
+                <h2 className={styles.sectionTitle}>Dados pessoais</h2>
+                <p className={styles.sectionDescription}>
+                  Informações usadas para identificar e contatar o cliente.
+                </p>
+              </div>
+            </div>
+
+            <div className={styles.personalGrid}>
+              <label className={`${styles.field} ${styles.fieldWide}`}>
+                <span className={styles.label}>Nome completo</span>
                 <input
                   className={styles.input}
-                  placeholder="Nome completo"
+                  placeholder="Ex: Eduardo Silva"
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  onChange={(event) => setCustomerName(event.target.value)}
+                  autoComplete="name"
+                  required
                 />
               </label>
-              <label className={styles.field}>
-                <span className={styles.label}>Email</span>
+              <label className={`${styles.field} ${styles.fieldWide}`}>
+                <span className={styles.label}>E-mail</span>
                 <input
                   className={styles.input}
-                  placeholder="Email do cliente"
+                  type="email"
+                  placeholder="cliente@email.com"
                   value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  onChange={(event) => setCustomerEmail(event.target.value)}
+                  autoComplete="email"
+                  required
                 />
               </label>
               <label className={styles.field}>
                 <span className={styles.label}>CPF</span>
                 <input
                   className={styles.input}
-                  placeholder="CPF"
+                  placeholder="000.000.000-00"
                   value={cpfMask(CPF)}
-                  onChange={(e) => setCPF(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  onChange={(event) =>
+                    setCPF(event.target.value.replace(/\D/g, "").slice(0, 11))
+                  }
+                  inputMode="numeric"
+                  required
                 />
               </label>
               <label className={styles.field}>
                 <span className={styles.label}>Telefone</span>
                 <input
                   className={styles.input}
-                  placeholder="Telefone"
+                  type="tel"
+                  placeholder="(00) 00000-0000"
                   value={phoneMask(phone)}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  onChange={(event) =>
+                    setPhone(
+                      event.target.value.replace(/\D/g, "").slice(0, 11),
+                    )
+                  }
+                  autoComplete="tel"
+                  inputMode="tel"
+                  required
                 />
               </label>
-              <label className={styles.field}>
+            </div>
+          </section>
+
+          <div className={styles.sectionDivider} />
+
+          <section className={styles.formSection}>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionIcon}>
+                <MapPin size={18} />
+              </span>
+              <div>
+                <h2 className={styles.sectionTitle}>Endereço</h2>
+                <p className={styles.sectionDescription}>
+                  Localização principal vinculada ao cadastro.
+                </p>
+              </div>
+            </div>
+
+            <div className={styles.addressGrid}>
+              <label className={`${styles.field} ${styles.roadField}`}>
                 <span className={styles.label}>Rua</span>
                 <input
                   className={styles.input}
-                  placeholder="Rua"
+                  placeholder="Nome da rua ou avenida"
                   value={road}
-                  onChange={(e) => setRoad(e.target.value)}
+                  onChange={(event) => setRoad(event.target.value)}
+                  autoComplete="street-address"
+                  required
                 />
               </label>
-              <label className={styles.field}>
+              <label className={`${styles.field} ${styles.numberField}`}>
                 <span className={styles.label}>Número</span>
                 <input
                   className={styles.input}
-                  placeholder="Número"
+                  placeholder="Nº"
                   value={number}
-                  onChange={(e) => setNumber(e.target.value)}
+                  onChange={(event) => setNumber(event.target.value)}
+                  required
                 />
               </label>
-              <label className={styles.field}>
+              <label className={`${styles.field} ${styles.neighborhoodField}`}>
                 <span className={styles.label}>Bairro</span>
                 <input
                   className={styles.input}
                   placeholder="Bairro"
                   value={neighborhood}
-                  onChange={(e) => setNeighborhood(e.target.value)}
+                  onChange={(event) => setNeighborhood(event.target.value)}
+                  required
                 />
               </label>
-              <label className={styles.field}>
+              <label className={`${styles.field} ${styles.cityField}`}>
                 <span className={styles.label}>Cidade</span>
                 <input
                   className={styles.input}
                   placeholder="Cidade"
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  onChange={(event) => setCity(event.target.value)}
+                  autoComplete="address-level2"
+                  required
                 />
               </label>
-              <label className={styles.field}>
+              <label className={`${styles.field} ${styles.stateField}`}>
                 <span className={styles.label}>Estado</span>
                 <input
                   className={styles.input}
-                  placeholder="Estado"
+                  placeholder="UF"
                   value={state}
-                  onChange={(e) => setState(e.target.value)}
+                  onChange={(event) =>
+                    setState(event.target.value.toUpperCase().slice(0, 2))
+                  }
+                  autoComplete="address-level1"
+                  maxLength={2}
+                  required
                 />
               </label>
-              <label className={styles.field}>
+              <label className={`${styles.field} ${styles.zipCodeField}`}>
                 <span className={styles.label}>CEP</span>
                 <input
                   className={styles.input}
-                  placeholder="CEP"
+                  placeholder="00000-000"
                   value={cepMask(zipCode)}
-                  onChange={(e) => setZipCode(e.target.value)}
+                  onChange={(event) =>
+                    setZipCode(
+                      event.target.value.replace(/\D/g, "").slice(0, 8),
+                    )
+                  }
+                  autoComplete="postal-code"
+                  inputMode="numeric"
+                  required
                 />
               </label>
             </div>
           </section>
-        </div>
+        </form>
       </div>
     </div>
   );

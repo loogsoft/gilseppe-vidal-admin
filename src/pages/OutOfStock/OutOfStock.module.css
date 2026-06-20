@@ -58,7 +58,7 @@
 }
 
 .search:hover {
-  border-color: #000;
+  border-color: var(--control-hover-border);
 }
 
 .search:focus-within {
@@ -128,7 +128,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
   gap: 30px;
   padding: 20px 0;
   align-items: start;
@@ -170,7 +170,7 @@
 }
 
 .pageBtn:hover:not(.pageBtnDisabled):not(.pageBtnActive) {
-  border-color: #000;
+  border-color: var(--control-hover-border);
   background: var(--surface-muted);
 }
 

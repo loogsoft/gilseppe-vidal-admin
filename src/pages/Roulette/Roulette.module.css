@@ -20,7 +20,7 @@
   transition: all 0.2s ease;
 }
 .search:hover {
-  border-color: #000;
+  border-color: var(--control-hover-border);
 }
 .search:focus-within {
   border-color: var(--highlight-primary);
@@ -103,7 +103,7 @@
   transition: all 0.2s ease;
 }
 .pageBtn:hover:not(.pageBtnDisabled):not(.pageBtnActive) {
-  border-color: #000;
+  border-color: var(--control-hover-border);
   background: var(--surface-muted);
 }
 .pageBtnActive {
@@ -132,13 +132,36 @@
 .rouletteRoot {
   padding: 30px;
   font-family: Inter, sans-serif;
-  background: #F5F6F7;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   min-height: 100vh;
   width: 100%;
 }
+
+.rouletteRoot input,
+.rouletteRoot select,
+.rouletteRoot textarea {
+  border: 1px solid var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.rouletteRoot input::placeholder,
+.rouletteRoot textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.rouletteRoot input:focus,
+.rouletteRoot select:focus,
+.rouletteRoot textarea:focus {
+  border-color: var(--highlight-primary);
+  box-shadow: 0 0 0 3px var(--highlight-secondary);
+}
 .tabBox {
   display: flex;
-  background: #fff;
+  background: var(--surface);
+  border: 1px solid var(--border-default);
   border-radius: 32px;
   width: 380px;
   height: 40px;
@@ -215,7 +238,7 @@
   height: 35px;
   border: none;
   background: transparent;
-  color: #B0B0B0;
+  color: var(--text-muted);
   font-weight: 500;
   font-size: 16px;
   border-radius: 30px;
@@ -229,7 +252,8 @@
 }
 .productsBox {
   margin-bottom: 32px;
-  background: #fff;
+  background: var(--surface);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
   padding: 0;
@@ -238,7 +262,7 @@
 .productsHeader {
   font-weight: 700;
   font-size: 22px;
-  color: #222;
+  color: var(--text-primary);
   padding: 24px 24px 10px 24px;
 }
 .productsTableWrap {
@@ -251,8 +275,8 @@
   min-width: 600px;
 }
 .productsTableHeadRow th {
-  background: #F5F6F7;
-  color: #888;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
   font-weight: 600;
   font-size: 15px;
   padding: 12px 8px;
@@ -263,10 +287,10 @@
   padding: 12px 8px;
 }
 .productsTableRow {
-  background: #fff;
+  background: var(--surface);
 }
 .productsTableRowAlt {
-  background: #FAFAFA;
+  background: var(--surface-muted);
 }
 .productsTableCellName {
   font-weight: 600;
@@ -278,11 +302,11 @@
   border-radius: 6px;
 }
 .productsTableStatusActive {
-  color: #388e3c;
+  color: var(--status-success);
   font-weight: 600;
 }
 .productsTableStatusInactive {
-  color: #b71c1c;
+  color: var(--status-danger);
   font-weight: 600;
 }
 .productsTableActions {
@@ -290,12 +314,13 @@
   min-width: 90px;
 }
 .productsTableEmpty {
-  color: #888;
+  color: var(--text-muted);
   text-align: center;
   padding: 24px;
 }
 .featuredBox {
-  background: #fff;
+  background: var(--surface);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
@@ -311,7 +336,9 @@
 .featuredInput {
   padding: 10px;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-primary);
 }
 .featuredAddBtn {
   background: var(--highlight-primary);
@@ -334,7 +361,7 @@
   border-radius: 10px;
   padding: 10px;
   position: relative;
-  background: #fff;
+  background: var(--surface-muted);
   box-shadow: none;
   display: flex;
   flex-direction: column;
@@ -348,11 +375,11 @@
   background: transparent;
   cursor: pointer;
   font-size: 18px;
-  color: #b71c1c;
+  color: var(--status-danger);
   transition: color 0.18s;
 }
 .featuredCardRemoveBtn:hover {
-  color: #ff0000;
+  color: color-mix(in srgb, var(--status-danger) 82%, white);
 }
 .featuredCardImg {
   width: 100%;
@@ -367,10 +394,11 @@
 }
 .featuredCardDesc {
   font-size: 12px;
-  color: #777;
+  color: var(--text-secondary);
 }
 .previewBox {
-  background: #fff;
+  background: var(--surface);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 32px;
@@ -396,26 +424,26 @@
   transition: background 0.18s, color 0.18s;
 }
 .previewBtn:hover {
-  background: #FFF8E1;
-  color: #FFB300;
+  background: var(--highlight-secondary);
+  color: var(--highlight-primary);
 }
 .previewTitle {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #222;
+  color: var(--text-primary);
 }
 .previewCanvas {
   margin-top: 10px;
 }
 .previewEmptyMsg {
   margin-top: 20px;
-  color: #bbb;
+  color: var(--text-muted);
   font-size: 15px;
 }
 .previewInfo {
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
   margin-top: 10px;
 }
 .actionBtn {
@@ -428,7 +456,7 @@
   padding: 4px 12px;
   border: 1.5px solid var(--highlight-primary);
   color: var(--highlight-primary);
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   transition: background 0.18s, color 0.18s, border 0.18s;
 }
@@ -437,11 +465,11 @@
   color: #fff;
 }
 .actionBtn.delete {
-  border: 1.5px solid #b71c1c;
-  color: #b71c1c;
+  border: 1.5px solid var(--status-danger);
+  color: var(--status-danger);
 }
 .actionBtn.delete:hover {
-  background: #b71c1c;
+  background: var(--status-danger);
   color: #fff;
 }
 .actionBtn svg {

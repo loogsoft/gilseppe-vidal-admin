@@ -46,6 +46,8 @@ export function DiscountStockFilterModal({
 
   useEffect(() => {
     if (isOpen && initialFilters) {
+      // Reabre o formulário com os filtros atualmente aplicados pelo usuário.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMinPrice(initialFilters.minPrice);
       setMaxPrice(initialFilters.maxPrice);
       setMinStock(initialFilters.minStock);

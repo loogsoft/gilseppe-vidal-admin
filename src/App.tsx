@@ -12,10 +12,11 @@ import { Supplier } from "./pages/Supplier/Supplier";
 import { SupplierDetails } from "./pages/Supplier/SupplierDetails";
 import { Profille } from "./pages/Profille/Profille";
 import { OutOfStock } from "./pages/OutOfStock/OutOfStock";
-import { useMessageContext } from "./contexts/MessageContext";
+import { useMessageContext } from "./contexts/useMessageContext";
 import Roleta from "./pages/Roulette/Roulette";
 import { Credit } from "./pages/Credit/Credit";
 import { CreditDetails } from "./pages/Credit/CreditDetails";
+import { CreditSaleDetails } from "./pages/Credit/CreditSaleDetails";
 import RegisterCompany from "./pages/registerCompany/RegisterCompany";
 import { Collaborators } from "./pages/Collaborators/Collaborators";
 
@@ -26,7 +27,7 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
     checkStockAndNotify();
-  }, [isAuthenticated]);
+  }, [checkStockAndNotify, isAuthenticated]);
 
   useEffect(() => {
     const companyData = localStorage.getItem("company");
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="/roulette" element={<Roleta />} />
         <Route path="/credit" element={<Credit />} />
         <Route path="/credit-details/:id?" element={<CreditDetails />} />
+        <Route path="/credit-sale-details/:id?" element={<CreditSaleDetails />} />
       </Route>
     </Routes>
   );

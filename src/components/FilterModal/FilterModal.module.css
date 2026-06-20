@@ -123,7 +123,7 @@
 }
 
 .input:hover {
-  border-color: #000;
+  border-color: var(--control-hover-border);
 }
 
 .input:focus {
@@ -145,7 +145,7 @@
 }
 
 .select:hover {
-  border-color: #000;
+  border-color: var(--control-hover-border);
 }
 
 .select:focus {
@@ -196,7 +196,7 @@
 }
 
 .radio:hover {
-  border-color: #000;
+  border-color: var(--control-hover-border);
 }
 
 .radio:checked {
@@ -263,7 +263,7 @@
 }
 
 .applyBtn:hover {
-  background: #FFBA0F;
+  transform: scale(1.1);
   box-shadow: none;
 }
 

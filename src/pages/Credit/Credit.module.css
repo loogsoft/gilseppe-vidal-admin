@@ -89,9 +89,7 @@
 
 .addBtn:hover {
   transform: scale(1.05);
-  box-shadow: 0 16px 28px rgba(255, 200, 61, 0.35);
 }
-
 
 .stats {
   display: grid;
@@ -120,7 +118,7 @@
   letter-spacing: 0.1em;
   color: var(--text-muted);
   font-weight: 600;
-	text-transform: uppercase;
+  text-transform: uppercase;
 }
 
 .statValue {
@@ -158,7 +156,7 @@
 }
 
 .search:hover {
-  border-color: #000;
+  border-color: var(--control-hover-border);
 }
 
 .search:focus-within {
@@ -247,6 +245,221 @@
   box-shadow: 0 12px 24px rgba(17, 24, 39, 0.08);
 }
 
+.table {
+  display: grid;
+  gap: 10px;
+}
+
+.row {
+  display: grid;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+}
+
+.thead {
+  background: var(--surface-muted);
+  border: 1px solid var(--border-default);
+  padding: 10px 18px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.creditRow {
+  grid-template-columns:
+    minmax(220px, 1.35fr) minmax(180px, 1.05fr) minmax(140px, 0.8fr)
+    minmax(240px, 1.4fr) minmax(110px, 0.7fr);
+}
+
+.customerRow,
+.clickableRow {
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.customerRow:hover,
+.customerRow:focus-visible,
+.clickableRow:hover,
+.clickableRow:focus-visible {
+  border-color: color-mix(
+    in srgb,
+    var(--highlight-primary) 45%,
+    var(--border-default)
+  );
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.1);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.creditOpenRow {
+  grid-template-columns:
+    minmax(220px, 1.25fr) minmax(180px, 1fr) minmax(140px, 0.8fr)
+    minmax(220px, 1.2fr) minmax(160px, 0.8fr);
+}
+
+.clientCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(
+    135deg,
+    var(--highlight-primary),
+    var(--highlight-secondary)
+  );
+  color: var(--text-on-dark);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+}
+
+.clientName {
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.customerInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+}
+
+.clientSubtext {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cellText {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.productCell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+}
+
+.productTitle {
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.productMeta {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.installmentDateCell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.installmentDateCell span {
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.installmentDateCell strong {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.typeBadge,
+.amountBadge,
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 25px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.typeBadge {
+  background: color-mix(in srgb, var(--highlight-primary) 14%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--highlight-primary) 24%, transparent);
+  color: var(--highlight-primary);
+}
+
+.amountBadge {
+  background: color-mix(in srgb, var(--status-success) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-success) 24%, transparent);
+  color: var(--status-success);
+}
+
+.statusBadge {
+  min-width: 112px;
+}
+
+.statusPending {
+  background: color-mix(in srgb, var(--status-warning) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-warning) 24%, transparent);
+  color: var(--status-warning);
+}
+
+.statusLate {
+  background: color-mix(in srgb, var(--status-danger) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-danger) 24%, transparent);
+  color: var(--status-danger);
+}
+
+.statusPaid {
+  background: color-mix(in srgb, var(--status-success) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-success) 24%, transparent);
+  color: var(--status-success);
+}
+
+.statusCompleted {
+  background: color-mix(in srgb, var(--status-info) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-info) 24%, transparent);
+  color: var(--status-info);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(220px, 1fr));
@@ -291,7 +504,7 @@
 }
 
 .pageBtn:hover:not(.pageBtnDisabled):not(.pageBtnActive) {
-  border-color: #000;
+  border-color: var(--control-hover-border);
   background: var(--surface-muted);
 }
 
@@ -329,6 +542,16 @@
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
+  .table {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .creditRow,
+  .creditOpenRow {
+    min-width: 940px;
+  }
+
   .stats {
     grid-template-columns: repeat(2, minmax(160px, 1fr));
   }
@@ -342,6 +565,29 @@
   .filters {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .row {
+    padding: 12px 14px;
+  }
+
+  .thead {
+    padding: 0 14px;
+  }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 0.84rem;
+  }
+
+  .clientName {
+    font-size: 0.9rem;
+  }
+
+  .cellText {
+    font-size: 0.82rem;
   }
 
   .stats {

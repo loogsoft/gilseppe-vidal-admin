@@ -8,13 +8,13 @@ export const MessageService = {
     return data;
   },
 
-  async findAll(companyId: string): Promise<MessageResponseDto[]> {
-    const { data } = await api.get(`/messages/find-all/${companyId}`);
+  async findAll(): Promise<MessageResponseDto[]> {
+    const { data } = await api.get("/messages");
     return data;
   },
 
-  async findOne(companyId: string, id: string): Promise<MessageResponseDto> {
-    const { data } = await api.get(`/messages/companyId/${companyId}/${id}`);
+  async findOne(id: string): Promise<MessageResponseDto> {
+    const { data } = await api.get(`/messages/${id}`);
     return data;
   },
 
@@ -26,8 +26,8 @@ export const MessageService = {
     return data;
   },
 
-  async remove(id: string, companyId: string): Promise<string> {
-    const { data } = await api.delete(`/messages/companyId/${companyId}/${id}`);
+  async remove(id: string): Promise<string> {
+    const { data } = await api.delete(`/messages/${id}`);
     return data;
   },
 };

@@ -12,10 +12,8 @@ type SupplierListResponse =
   | { data: SupplierResponseDto[] };
 
 export const SupplierService = {
-  findAll: async (companyId: string): Promise<SupplierListResponse> => {
-    const response = await api.get<SupplierListResponse>(
-      `${API_URL}/find-all/${companyId}`,
-    );
+  findAll: async (): Promise<SupplierListResponse> => {
+    const response = await api.get<SupplierListResponse>(API_URL);
     return response.data;
   },
 
@@ -28,7 +26,7 @@ export const SupplierService = {
     supplier: SupplierRequestDto | FormData,
   ): Promise<SupplierResponseDto> => {
     let config = {};
-    let body: any = supplier;
+    const body = supplier;
     if (supplier instanceof FormData) {
       config = { headers: { "Content-Type": "multipart/form-data" } };
     }
@@ -41,7 +39,7 @@ export const SupplierService = {
     supplier: Partial<SupplierRequestDto> | FormData,
   ): Promise<SupplierResponseDto> => {
     let config = {};
-    let body: any = supplier;
+    const body = supplier;
     if (supplier instanceof FormData) {
       config = { headers: { "Content-Type": "multipart/form-data" } };
     }

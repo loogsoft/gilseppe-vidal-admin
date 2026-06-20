@@ -8,13 +8,24 @@ export const CreditCustomerService = {
     return response.data;
   },
 
-  findOne: async (id: string, companyId: string): Promise<CreditCustomerResponseDto> => {
-    const response = await api.get<CreditCustomerResponseDto>(`/credit-customer/companyId/${companyId}/${id}`);
+  findOne: async (id: string): Promise<CreditCustomerResponseDto> => {
+    const response = await api.get<CreditCustomerResponseDto>(`/credit-customer/${id}`);
     return response.data;
   },
 
-  findAll: async (companyId: string): Promise<CreditCustomerResponseDto[]> => {
-    const response = await api.get<CreditCustomerResponseDto[]>(`/credit-customer/${companyId}`);
+  update: async (
+    id: string,
+    dto: CreditCustomerRequestDto,
+  ): Promise<CreditCustomerResponseDto> => {
+    const response = await api.put<CreditCustomerResponseDto>(
+      `/credit-customer/${id}`,
+      dto,
+    );
+    return response.data;
+  },
+
+  findAll: async (): Promise<CreditCustomerResponseDto[]> => {
+    const response = await api.get<CreditCustomerResponseDto[]>("/credit-customer");
     return response.data;
   },
 };

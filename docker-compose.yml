@@ -1,0 +1,10 @@
+services:
+  loog-system-admin:
+    build: .
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development

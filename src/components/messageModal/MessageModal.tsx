@@ -15,8 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageService } from "../../service/Message.service";
 import type { MessageResponseDto } from "../../dtos/response/message-response.dto";
-import { useMessageContext } from "../../contexts/MessageContext";
-import { useAuth } from "../../contexts/useAuth";
+import { useMessageContext } from "../../contexts/useMessageContext";
 
 const handleCopy = (productId?: string) => {
   if (!productId) return;
@@ -42,11 +41,9 @@ export function MessageModal({
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [clearing, setClearing] = useState(false);
   const { decrementMessageCount, clearMessageCount } = useMessageContext();
-  const { user } = useAuth();
-  const companyId = user?.companyId;
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    await MessageService.remove(String(id), companyId!);
+    await MessageService.remove(String(id));
     setMessages((prev) => prev.filter((m) => m.id !== id));
     decrementMessageCount();
   };
@@ -55,7 +52,7 @@ export function MessageModal({
     if (clearing) return;
     setClearing(true);
     await Promise.all(
-      messages.map((m) => MessageService.remove(String(m.id), companyId!).catch(() => {})),
+      messages.map((m) => MessageService.remove(String(m.id)).catch(() => {})),
     );
     setMessages([]);
     clearMessageCount();
@@ -64,7 +61,7 @@ export function MessageModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    if (companyId) MessageService.findAll(companyId).then(setMessages);
+    MessageService.findAll().then(setMessages);
   }, [isOpen]);
 
   const counts = useMemo(() => {

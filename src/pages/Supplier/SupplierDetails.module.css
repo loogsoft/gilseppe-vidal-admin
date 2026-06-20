@@ -52,7 +52,7 @@
 
 .discard:hover {
 	background: var(--surface-muted);
-	border-color: #000;
+	border-color: var(--control-hover-border);
 }
 
 .save {
@@ -80,8 +80,8 @@
 	width: 14px;
 	height: 14px;
 	border-radius: 50%;
-	border: 2px solid rgba(17, 17, 17, 0.2);
-	border-top-color: #111;
+	border: 2px solid color-mix(in srgb, var(--text-primary) 22%, transparent);
+	border-top-color: var(--text-primary);
 	animation: spin 0.7s linear infinite;
 }
 
@@ -137,7 +137,8 @@
 	width: 42px;
 	height: 42px;
 	border-radius: 14px;
-	background: #fff4c6;
+	background: var(--highlight-secondary);
+	color: var(--highlight-primary);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -251,7 +252,7 @@
 
 .input:hover,
 .select:hover {
-	border-color: #000;
+	border-color: var(--control-hover-border);
 }
 
 .input:focus,
@@ -277,9 +278,9 @@
 	height: 36px;
 	padding: 0 16px;
 	border-radius: 10px;
-	border: 1px solid rgba(17, 17, 17, 0.12);
-	background: #fff;
-	color: rgba(29, 31, 35, 0.7);
+	border: 1px solid var(--border-default);
+	background: var(--surface);
+	color: var(--text-secondary);
 	font-weight: 800;
 	font-size: 12px;
 	cursor: pointer;

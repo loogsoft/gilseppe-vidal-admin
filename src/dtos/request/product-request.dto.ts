@@ -5,18 +5,16 @@ import type { ProductVariationRequestDto } from "./product-variation-request.dto
 export interface ProductRequest {
   name: string;
   description?: string;
-  companyId: string;
   category: ProductCategoryEnum;
   status?: ProductStatusEnum;
-  price: number | null;
-  color?: string | undefined;
-  size?: string | undefined;
+  price?: number | null;
+  color?: string | null;
+  size?: string | null;
   promoPrice?: number | null;
   stock?: number | null;
-  hasVariations: boolean;
-  activeLowStock: boolean;
-  lowStock: number;
+  activeLowStock?: boolean;
+  lowStock?: number;
   variations?: ProductVariationRequestDto[];
   imageIds?: string[];
-  supplierId: string;
+  supplierId?: string | null;
 }

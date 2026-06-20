@@ -26,7 +26,9 @@ export default function RegisterCompany() {
 	});
 
 	function handleCompanyChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
-		const { name, value, files } = e.target as any;
+		const target = e.target;
+		const { name, value } = target;
+		const files = target instanceof HTMLInputElement ? target.files : null;
 		setCompanyData((prev) => ({
 			...prev,
 			[name]: files ? files[0] : value,

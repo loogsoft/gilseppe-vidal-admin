@@ -1,636 +1,773 @@
-import { useEffect, useState, useRef } from "react";
-import { Eye, EyeOff } from "lucide-react";
-import { useAuth } from "../../contexts/useAuth";
-import styles from "./Profille.module.css";
-import { CompanyService } from "../../service/Company.service";
-import { toast } from "react-toastify";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import axios from "axios";
 import {
-  UserService,
-} from "../../service/User.service";
+  AlertCircle,
+  BadgeCheck,
+  Building2,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Fingerprint,
+  KeyRound,
+  LoaderCircle,
+  LockKeyhole,
+  Mail,
+  Palette,
+  Phone,
+  Save,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { toast } from "react-toastify";
+import { useAuth } from "../../contexts/useAuth";
 import { UserTypeEnum } from "../../dtos/enums/user-type.enum";
+import { CompanyService } from "../../service/Company.service";
+import { UserService } from "../../service/User.service";
+import styles from "./Profille.module.css";
+
+type PasswordFeedback = {
+  type: "success" | "error";
+  message: string;
+};
+
+type CompanySettings = {
+  name: string;
+  email: string;
+  phone: string;
+  document: string;
+  color: string;
+};
+
+const EMPTY_COMPANY: CompanySettings = {
+  name: "",
+  email: "",
+  phone: "",
+  document: "",
+  color: "#007BFF",
+};
+
+const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
+
+function phoneMask(value: string): string {
+  const normalized = value.replace(/\D/g, "").slice(0, 11);
+  if (normalized.length <= 10) {
+    return normalized
+      .replace(/^(\d{2})(\d)/g, "($1) $2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+  }
+
+  return normalized
+    .replace(/^(\d{2})(\d)/g, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2");
+}
+
+function cpfCnpjMask(value: string): string {
+  const normalized = value.replace(/\D/g, "").slice(0, 14);
+  if (normalized.length <= 11) {
+    return normalized
+      .replace(/^(\d{3})(\d)/, "$1.$2")
+      .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+      .replace(/\.(\d{3})(\d)/, ".$1-$2");
+  }
+
+  return normalized
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
+
+function normalizeCompany(data: {
+  companyName?: string;
+  companyEmail?: string;
+  companyPhone?: number | string;
+  companyCpfCnpj?: number | string;
+  color?: string;
+}): CompanySettings {
+  return {
+    name: data.companyName ?? "",
+    email: data.companyEmail ?? "",
+    phone: data.companyPhone ? String(data.companyPhone) : "",
+    document: data.companyCpfCnpj ? String(data.companyCpfCnpj) : "",
+    color: HEX_COLOR_REGEX.test(data.color ?? "")
+      ? String(data.color)
+      : "#007BFF",
+  };
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const normalized = hex.replace("#", "");
+  const value = Number.parseInt(normalized, 16);
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (!axios.isAxiosError<{ message?: string | string[] }>(error)) {
+    return fallback;
+  }
+
+  const responseMessage = error.response?.data?.message;
+  if (Array.isArray(responseMessage)) return responseMessage.join(" ");
+
+  return responseMessage || fallback;
+}
+
 export function Profille() {
   const { user } = useAuth();
+  const authenticatedUserId = user?.id ?? "";
+  const [companyId, setCompanyId] = useState("");
+  const [company, setCompany] =
+    useState<CompanySettings>(EMPTY_COMPANY);
+  const [savedCompany, setSavedCompany] =
+    useState<CompanySettings>(EMPTY_COMPANY);
+  const [memberDate, setMemberDate] = useState("");
+  const [userStatus, setUserStatus] = useState<UserTypeEnum | null>(
+    user?.userType ?? null,
+  );
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [companySaving, setCompanySaving] = useState(false);
+
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    nomeCompleto: user?.name || "Alex Johnson",
-    email: user?.email || "alex.johnson@pinna.com",
-    cpf: "000.000.000-00",
-    telefone: "(11) 99999-9999",
-    senhaAtual: "",
-    novaSenha: "",
-    confirmarSenha: "",
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] =
+    useState<PasswordFeedback | null>(null);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      nomeCompleto: user?.name || "Alex Johnson",
-      email: user?.email || "alex.johnson@pinna.com",
-    }));
-  }, [user]);
+    if (!authenticatedUserId) return;
 
-  const [companyName, setCompanyName] = useState("");
-  const [companyEmail, setCompanyEmail] = useState("");
-  const [companyPhone, setCompanyPhone] = useState<any>("");
-  const [companyCpfCnpj, setCompanyCpfCnpj] = useState<any>("");
-  const [companyColor, setCompanyColor] = useState("");
-  const [memberDate, setMenberDate] = useState("");
-  const [userStatus, setUserStatus] = useState<UserTypeEnum | null>(null);
+    const loadSettings = async () => {
+      try {
+        setLoadingProfile(true);
+        const profile = await UserService.findOne(authenticatedUserId);
+        const resolvedCompanyId = profile.companyId || user?.companyId || "";
 
-  //new user
+        setCompanyId(resolvedCompanyId);
+        setUserStatus(profile.userType);
+        setMemberDate(
+          profile.dataCadastro
+            ? new Date(profile.dataCadastro).toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "",
+        );
 
-  const [companyId, setCompanyId] = useState("");
+        if (resolvedCompanyId) {
+          const companyData = await CompanyService.findOne(resolvedCompanyId);
+          const normalizedCompany = normalizeCompany(companyData);
+          setCompany(normalizedCompany);
+          setSavedCompany(normalizedCompany);
+        }
+      } catch (error: unknown) {
+        toast.error(
+          getErrorMessage(
+            error,
+            "Não foi possível carregar as configurações da conta.",
+          ),
+        );
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
 
-
-  // const [users, setUsers] = useState<UserProfileResponse[]>([]);
+    void loadSettings();
+  }, [authenticatedUserId, user?.companyId]);
 
   const status =
-    userStatus === "ADMIN"
-      ? "Administrador"
-      : userStatus === "SELLER"
-        ? "Vendedor"
-        : "Usuário";
-  const originalData = useRef({
-    companyName: "",
-    companyEmail: "",
-    companyPhone: "",
-    companyCpfCnpj: "",
-    companyColor: "",
-  });
-  const originalPersonalData = useRef({
-    nomeCompleto: user?.name || "Alex Johnson",
-    email: user?.email || "alex.johnson@pinna.com",
-    cpf: "000.000.000-00",
-    telefone: "(11) 99999-9999",
-    senhaAtual: "",
-    novaSenha: "",
-    confirmarSenha: "",
-  });
-  const [canSave, setCanSave] = useState(false);
+    userStatus === UserTypeEnum.ADMIN ? "Administrador" : "Vendedor";
+  const companyColorIsValid = HEX_COLOR_REGEX.test(company.color);
+  const companyChanged = useMemo(
+    () =>
+      company.name !== savedCompany.name ||
+      company.email !== savedCompany.email ||
+      company.phone !== savedCompany.phone ||
+      company.document !== savedCompany.document ||
+      company.color !== savedCompany.color,
+    [company, savedCompany],
+  );
+  const canSaveCompany =
+    companyChanged &&
+    company.name.trim().length >= 2 &&
+    companyColorIsValid &&
+    !companySaving &&
+    !loadingProfile;
 
-  // const [canNewUser, setCanNewUser] = useState(false);
+  const updateCompany = <Key extends keyof CompanySettings>(
+    key: Key,
+    value: CompanySettings[Key],
+  ) => {
+    setCompany((current) => ({ ...current, [key]: value }));
+  };
 
-  useEffect(() => {
-    const findUser = async () => {
-      const data = await UserService.findOne(user?.id || "");
-      setUserStatus(data.userType);
-      setCompanyId(data.companyId);
-      setMenberDate(
-        data.dataCadastro
-          ? new Date(data.dataCadastro).toLocaleDateString("pt-BR", {
-              month: "short",
-              year: "numeric",
-              day: "numeric",
-            })
-          : "",
+  const handleCompanySubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!companyId || !canSaveCompany) return;
+
+    try {
+      setCompanySaving(true);
+      const updatedCompany = await CompanyService.update(companyId, {
+        companyName: company.name.trim(),
+        companyEmail: company.email.trim(),
+        companyPhone: Number(company.phone.replace(/\D/g, "")) || 0,
+        companyCpfCnpj: Number(company.document.replace(/\D/g, "")) || 0,
+        color: company.color,
+      });
+
+      if (authenticatedUserId) {
+        await UserService.update(authenticatedUserId, {
+          name: company.name.trim(),
+        });
+      }
+
+      const normalizedCompany = normalizeCompany(updatedCompany);
+      setCompany(normalizedCompany);
+      setSavedCompany(normalizedCompany);
+      localStorage.setItem("company", JSON.stringify(updatedCompany));
+      document.documentElement.style.setProperty(
+        "--highlight-primary",
+        normalizedCompany.color,
       );
-      await UserService.findAll(data.companyId);
-      // setUsers(dataa);
-    };
-
-    findUser();
-  }, []);
-
-  useEffect(() => {
-    if (!companyId) return;
-
-    const fetchData = async () => {
-      try {
-        const data = await CompanyService.findOne(companyId);
-        setCompanyName(data.companyName);
-        setCompanyEmail(data.companyEmail);
-        setCompanyPhone(data.companyPhone ? String(data.companyPhone) : "");
-        setCompanyCpfCnpj(
-          data.companyCpfCnpj ? String(data.companyCpfCnpj) : "",
-        );
-        setCompanyColor(data.color);
-
-        originalData.current = {
-          companyName: data.companyName || "",
-          companyEmail: data.companyEmail || "",
-          companyPhone: data.companyPhone ? String(data.companyPhone) : "",
-          companyCpfCnpj: data.companyCpfCnpj
-            ? String(data.companyCpfCnpj)
-            : "",
-          companyColor: data.color || "",
-        };
-      } catch (error) {
-        console.error("Erro ao buscar dados da empresa:", error);
-      }
-    };
-
-    fetchData();
-  }, [companyId]);
-  // 👈 AQUI É O SEGREDO
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => {
-      const updated = { ...prev, [name]: value };
-      setCanSave(isPersonalDataChanged(updated) || isCompanyDataChanged());
-      return updated;
-    });
-  };
-  function isPersonalDataChanged(data = formData) {
-    const keys = Object.keys(originalPersonalData.current);
-    for (const key of keys) {
-      if (
-        data[key as keyof typeof data] !==
-        originalPersonalData.current[
-          key as keyof typeof originalPersonalData.current
-        ]
-      ) {
-        return true;
-      }
+      document.documentElement.style.setProperty(
+        "--highlight-secondary",
+        hexToRgba(normalizedCompany.color, 0.12),
+      );
+      toast.success("Configurações da empresa atualizadas com sucesso!", {
+        autoClose: 2500,
+      });
+    } catch (error: unknown) {
+      toast.error(
+        getErrorMessage(
+          error,
+          "Não foi possível salvar as configurações da empresa.",
+        ),
+      );
+    } finally {
+      setCompanySaving(false);
     }
-    return false;
-  }
-
-  function isCompanyDataChanged(
-    cName = companyName,
-    cEmail = companyEmail,
-    cPhone = companyPhone,
-    cCpfCnpj = companyCpfCnpj,
-    cColor = companyColor,
-  ) {
-    return (
-      cName !== (originalData.current.companyName ?? "") ||
-      cEmail !== (originalData.current.companyEmail ?? "") ||
-      cPhone !== (originalData.current.companyPhone ?? undefined) ||
-      cCpfCnpj !== (originalData.current.companyCpfCnpj ?? undefined) ||
-      cColor !== (originalData.current.companyColor ?? "")
-    );
-  }
-
-  const handleSave = () => {
-    setLoading(true);
-    setCanSave(false);
-    const fetchData = async () => {
-      const dto = {
-        companyName,
-        companyEmail,
-        companyPhone:
-          companyPhone && companyPhone.replace(/\D/g, "")
-            ? Number(companyPhone.replace(/\D/g, ""))
-            : 0,
-        companyCpfCnpj:
-          companyCpfCnpj && companyCpfCnpj.replace(/\D/g, "")
-            ? Number(companyCpfCnpj.replace(/\D/g, ""))
-            : 0,
-        color: companyColor,
-      };
-      if (companyId)
-        try {
-          const userPayload = {
-            name: companyName,
-          };
-          await CompanyService.update(companyId, dto);
-          if (user?.id) await UserService.update(user.id, userPayload);
-          try {
-            const data = await CompanyService.findOne(companyId);
-            setCompanyName(data.companyName);
-            setCompanyEmail(data.companyEmail);
-            setCompanyPhone(data.companyPhone);
-            setCompanyCpfCnpj(data.companyCpfCnpj);
-            setCompanyColor(data.color);
-            originalData.current = {
-              companyName: data.companyName || "",
-              companyEmail: data.companyEmail || "",
-              companyPhone: data.companyPhone ? String(data.companyPhone) : "",
-              companyCpfCnpj: data.companyCpfCnpj
-                ? String(data.companyCpfCnpj)
-                : "",
-              companyColor: data.color || "",
-            };
-            originalPersonalData.current = {
-              ...formData,
-            };
-            if (data.color) {
-              document.documentElement.style.setProperty(
-                "--highlight-primary",
-                data.color,
-              );
-              const companyData = localStorage.getItem("company");
-              if (!companyData || companyData !== JSON.stringify(data)) {
-                localStorage.setItem("company", JSON.stringify(data));
-              }
-              function hexToRgba(hex: string, alpha: number) {
-                let c = hex.replace("#", "");
-                if (c.length === 3) c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
-                const num = parseInt(c, 16);
-                const r = (num >> 16) & 255;
-                const g = (num >> 8) & 255;
-                const b = num & 255;
-                return `rgba(${r},${g},${b},${alpha})`;
-              }
-              document.documentElement.style.setProperty(
-                "--highlight-secondary",
-                hexToRgba(data.color, 0.1),
-              );
-            }
-          } catch (error) {
-            setLoading(false);
-          }
-        } catch (error) {
-          console.error("Erro ao buscar dados da empresa:", error);
-        } finally {
-          toast.success("Configurações da empresa atualizadas com sucesso!", {
-            autoClose: 2000,
-          });
-          setLoading(false);
-        }
-    };
-
-    fetchData();
   };
 
-  function phoneMask(value: string): string {
-    if (!value) return "";
+  const handlePasswordChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const { name, value } = event.target;
+    setPasswordForm((current) => ({ ...current, [name]: value }));
+    setPasswordFeedback(null);
+  };
 
-    // remove tudo que não for número
-    value = value.replace(/\D/g, "");
+  const passwordHasMinimumLength = passwordForm.newPassword.length >= 8;
+  const passwordHasNumber = /\d/.test(passwordForm.newPassword);
+  const passwordHasSymbol = /[^A-Za-z0-9\s]/.test(
+    passwordForm.newPassword,
+  );
+  const passwordIsStrong =
+    passwordHasMinimumLength && passwordHasNumber && passwordHasSymbol;
+  const passwordsMatch =
+    passwordForm.newPassword === passwordForm.confirmPassword;
+  const passwordIsDifferent =
+    passwordForm.newPassword !== passwordForm.currentPassword;
+  const passwordFieldsFilled =
+    passwordForm.currentPassword.length > 0 &&
+    passwordForm.newPassword.length > 0 &&
+    passwordForm.confirmPassword.length > 0;
+  const canUpdatePassword =
+    passwordFieldsFilled &&
+    passwordIsStrong &&
+    passwordsMatch &&
+    passwordIsDifferent &&
+    !passwordLoading;
 
-    // limita a 11 dígitos
-    value = value.slice(0, 11);
+  const handlePasswordSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    if (!authenticatedUserId || !canUpdatePassword) return;
 
-    if (value.length <= 10) {
-      // telefone fixo: (99) 9999-9999
-      return value
-        .replace(/^(\d{2})(\d)/g, "($1) $2")
-        .replace(/(\d{4})(\d)/, "$1-$2");
-    } else {
-      // celular: (99) 99999-9999
-      return value
-        .replace(/^(\d{2})(\d)/g, "($1) $2")
-        .replace(/(\d{5})(\d)/, "$1-$2");
+    try {
+      setPasswordLoading(true);
+      setPasswordFeedback(null);
+      await UserService.updatePassword(authenticatedUserId, {
+        defaultPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      const successMessage = "Senha alterada com sucesso.";
+      setPasswordFeedback({ type: "success", message: successMessage });
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+      toast.success(successMessage, { autoClose: 2500 });
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(
+        error,
+        "Não foi possível alterar a senha. Tente novamente.",
+      );
+      setPasswordFeedback({ type: "error", message: errorMessage });
+      toast.error(errorMessage, { autoClose: 3500 });
+    } finally {
+      setPasswordLoading(false);
     }
-  }
+  };
 
-  function cpfCnpjMask(value: string): string {
-    if (!value) return "";
-
-    // remove tudo que não for número
-    value = value.replace(/\D/g, "");
-
-    // limita a 14 dígitos (CNPJ)
-    value = value.slice(0, 14);
-
-    if (value.length <= 11) {
-      // CPF: 000.000.000-00
-      return value
-        .replace(/^(\d{3})(\d)/, "$1.$2")
-        .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
-        .replace(/\.(\d{3})(\d)/, ".$1-$2");
-    } else {
-      // CNPJ: 00.000.000/0000-00
-      return value
-        .replace(/^(\d{2})(\d)/, "$1.$2")
-        .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
-        .replace(/\.(\d{3})(\d)/, ".$1/$2")
-        .replace(/(\d{4})(\d)/, "$1-$2");
-    }
-  }
-
-  const displayName = user?.name || user?.email?.split("@")[0] || "Usuário";
+  const displayName =
+    company.name || user?.name || user?.email?.split("@")[0] || "Usuário";
   const initials = displayName
     .split(" ")
-    .map((part) => part.trim())
     .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
+    .map((part) => part[0])
     .join("")
-    .slice(0, 2);
+    .slice(0, 2)
+    .toUpperCase();
+  const profileEmail = company.email || user?.email || "E-mail não informado";
+
   return (
-    <main className={styles.container}>
-      <div className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Configurações de Perfil</h1>
-          <p className={styles.subtitle}>
-            Gerencie suas informações pessoais e credenciais de acesso.
-          </p>
-        </div>
-        <button
-          className={styles.saveButton}
-          onClick={handleSave}
-          disabled={!canSave || loading}
-        >
-          {loading ? " 💾 Salvando Alterações..." : " 💾 Salvar Alterações"}
-        </button>
-      </div>
+    <main className={styles.page}>
+      <div className={styles.shell}>
+        <header className={styles.hero}>
+          <div>
+            <span className={styles.eyebrow}>Preferências da conta</span>
+            <h1 className={styles.title}>Configurações</h1>
+            <p className={styles.subtitle}>
+              Gerencie a identidade da empresa e mantenha suas credenciais de
+              acesso protegidas.
+            </p>
+          </div>
+          <span className={styles.accountStatus}>
+            <ShieldCheck size={16} />
+            Conta protegida
+          </span>
+        </header>
 
-      <div className={styles.profileCard}>
-        <div
-          className={styles.profileAvatar}
-          style={{
-            background: "var(--highlight-primary)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: "50%",
-            width: 80,
-            height: 80,
-            fontWeight: 400,
-            fontSize: 28,
-            color: "#fff",
-            border: "4px solid #fff",
-            boxShadow: "0 2px 8px 0 rgba(0,0,0,0.04)",
-          }}
-        >
-          {initials}
-        </div>
-        <div className={styles.profileInfo}>
-          <h2 className={styles.profileName}>{formData.nomeCompleto}</h2>
-          <div className={styles.profileMeta}>
-            <span className={styles.badge}>{status}</span>
-            <span className={styles.memberDate}>
-              Membro desde:{" "}
-              <span style={{ color: "#000", fontWeight: "700" }}>
-                {" "}
-                {memberDate}
+        {loadingProfile && (
+          <div className={styles.loadingBanner}>
+            <LoaderCircle className={styles.spinner} size={18} />
+            Carregando configurações...
+          </div>
+        )}
+
+        <section className={styles.profileCard}>
+          <div className={styles.profileAvatar}>{initials}</div>
+          <div className={styles.profileMain}>
+            <div className={styles.profileHeading}>
+              <h2>{displayName}</h2>
+              <span className={styles.roleBadge}>
+                <BadgeCheck size={13} />
+                {status}
               </span>
-            </span>
+            </div>
+            <div className={styles.profileMeta}>
+              <span>
+                <Mail size={14} />
+                {profileEmail}
+              </span>
+              <span>
+                <CalendarDays size={14} />
+                Membro desde {memberDate || "data não informada"}
+              </span>
+              <span>
+                <Fingerprint size={14} />
+                ID {companyId ? companyId.slice(0, 8).toUpperCase() : "—"}
+              </span>
+            </div>
           </div>
-          <p className={styles.profileDescription}>
-            Responsável pelo gerenciamento geral da plataforma e supervisão de
-            relatórios corporativos do Pinha System.
-          </p>
-        </div>
-      </div>
-
-      <div className={styles.formGrid}>
-        {/* <div className={styles.formSection}>
-          <div className={styles.sectionIcon}>💼</div>
-          <h3 className={styles.sectionTitle}>Informações Pessoais</h3>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Nome Completo</label>
-            <input
-              type="text"
-              name="nomeCompleto"
-              value={formData.nomeCompleto}
-              onChange={handleChange}
-              className={styles.input}
-              placeholder="Sep seu nome completo"
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>E-mail Corporativo</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className={styles.input}
-              placeholder="seu.email@empresa.com"
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>CPF</label>
-            <input
-              type="text"
-              name="cpf"
-              value={cpfCnpjMask(formData.cpf)}
-              onChange={handleChange}
-              className={styles.input}
-              placeholder="000.000.000-00"
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Telefone</label>
-            <input
-              type="tel"
-              name="telefone"
-              value={phoneMask(formData.telefone)}
-              onChange={handleChange}
-              className={styles.input}
-              placeholder="(11) 99999-9999"
-            />
-          </div>
-        </div> */}
-        <div className={styles.formSection}>
-          <div className={styles.sectionIcon}>💼</div>
-          <h3 className={styles.sectionTitle}>Informações da Empresa</h3>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Nome da Empresa</label>
-            <input
-              type="text"
-              name="nomeCompleto"
-              value={companyName}
-              onChange={(e) => {
-                setCompanyName(e.target.value);
-                setCanSave(
-                  isPersonalDataChanged() ||
-                    isCompanyDataChanged(
-                      e.target.value,
-                      companyEmail,
-                      companyPhone,
-                      companyCpfCnpj,
-                      companyColor,
-                    ),
-                );
-              }}
-              className={styles.input}
-              placeholder="Nome da empresa"
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>E-mail da Empresa</label>
-            <input
-              type="email"
-              name="email"
-              value={companyEmail}
-              className={styles.input}
-              placeholder="seu.email@empresa.com"
-              disabled
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>CPF/CNPJ da Empresa</label>
-            <input
-              type="text"
-              name="cpf"
-              value={cpfCnpjMask(companyCpfCnpj)}
-              onChange={(e) => {
-                setCompanyCpfCnpj(e.target.value);
-                setCanSave(
-                  isPersonalDataChanged() ||
-                    isCompanyDataChanged(
-                      companyName,
-                      companyEmail,
-                      companyPhone,
-                      e.target.value,
-                      companyColor,
-                    ),
-                );
-              }}
-              className={styles.input}
-              placeholder="000.000.000-00"
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Telefone da Empresa</label>
-            <input
-              type="tel"
-              name="telefone"
-              value={phoneMask(companyPhone)}
-              onChange={(e) => {
-                setCompanyPhone(e.target.value);
-                setCanSave(
-                  isPersonalDataChanged() ||
-                    isCompanyDataChanged(
-                      companyName,
-                      companyEmail,
-                      e.target.value,
-                      companyCpfCnpj,
-                      companyColor,
-                    ),
-                );
-              }}
-              className={styles.input}
-              placeholder="(11) 99999-9999"
-            />
-          </div>
-          <div className={styles.inputWrap}>
-            <div
+          <div className={styles.brandPreview}>
+            <span
+              className={styles.brandColor}
               style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
+                background: companyColorIsValid
+                  ? company.color
+                  : "var(--highlight-primary)",
               }}
+            />
+            <div>
+              <strong>Cor da marca</strong>
+              <span>{company.color}</span>
+            </div>
+          </div>
+        </section>
+
+        <div className={styles.settingsGrid}>
+          <form
+            className={styles.settingsCard}
+            onSubmit={handleCompanySubmit}
+          >
+            <div className={styles.cardHeader}>
+              <span className={styles.cardIcon}>
+                <Building2 size={20} />
+              </span>
+              <div>
+                <h2>Identidade da empresa</h2>
+                <p>Informações exibidas em toda a plataforma.</p>
+              </div>
+              {companyChanged && (
+                <span className={styles.unsavedBadge}>Não salvo</span>
+              )}
+            </div>
+
+            <div className={styles.fieldsGrid}>
+              <label className={styles.field}>
+                <span>Nome da empresa</span>
+                <div className={styles.inputShell}>
+                  <Building2 size={17} />
+                  <input
+                    value={company.name}
+                    onChange={(event) =>
+                      updateCompany("name", event.target.value)
+                    }
+                    placeholder="Nome da empresa"
+                  />
+                </div>
+              </label>
+
+              <label className={styles.field}>
+                <span>E-mail corporativo</span>
+                <div
+                  className={`${styles.inputShell} ${styles.inputShellDisabled}`}
+                >
+                  <Mail size={17} />
+                  <input
+                    type="email"
+                    value={company.email}
+                    placeholder="empresa@email.com"
+                    disabled
+                  />
+                  <LockKeyhole size={14} />
+                </div>
+                <small>O e-mail principal não pode ser alterado aqui.</small>
+              </label>
+
+              <label className={styles.field}>
+                <span>CPF ou CNPJ</span>
+                <div className={styles.inputShell}>
+                  <Fingerprint size={17} />
+                  <input
+                    value={cpfCnpjMask(company.document)}
+                    onChange={(event) =>
+                      updateCompany(
+                        "document",
+                        event.target.value.replace(/\D/g, "").slice(0, 14),
+                      )
+                    }
+                    placeholder="00.000.000/0000-00"
+                    inputMode="numeric"
+                  />
+                </div>
+              </label>
+
+              <label className={styles.field}>
+                <span>Telefone</span>
+                <div className={styles.inputShell}>
+                  <Phone size={17} />
+                  <input
+                    value={phoneMask(company.phone)}
+                    onChange={(event) =>
+                      updateCompany(
+                        "phone",
+                        event.target.value.replace(/\D/g, "").slice(0, 11),
+                      )
+                    }
+                    placeholder="(00) 00000-0000"
+                    inputMode="tel"
+                  />
+                </div>
+              </label>
+            </div>
+
+            <div className={styles.brandField}>
+              <div className={styles.brandFieldHeading}>
+                <span className={styles.brandFieldIcon}>
+                  <Palette size={18} />
+                </span>
+                <div>
+                  <strong>Personalização da marca</strong>
+                  <p>Essa cor é aplicada nos destaques e ações do sistema.</p>
+                </div>
+              </div>
+              <div className={styles.colorControls}>
+                <label className={styles.colorPicker}>
+                  <input
+                    type="color"
+                    value={
+                      companyColorIsValid ? company.color : savedCompany.color
+                    }
+                    onChange={(event) =>
+                      updateCompany("color", event.target.value)
+                    }
+                    aria-label="Selecionar cor da empresa"
+                  />
+                  <span
+                    style={{
+                      background: companyColorIsValid
+                        ? company.color
+                        : "var(--highlight-primary)",
+                    }}
+                  />
+                </label>
+                <input
+                  className={`${styles.colorTextInput} ${
+                    company.color && !companyColorIsValid
+                      ? styles.inputError
+                      : ""
+                  }`}
+                  value={company.color}
+                  onChange={(event) =>
+                    updateCompany("color", event.target.value.slice(0, 7))
+                  }
+                  placeholder="#007BFF"
+                  maxLength={7}
+                />
+                <div className={styles.colorSample}>
+                  <Sparkles size={15} />
+                  Prévia da identidade
+                </div>
+              </div>
+              {company.color && !companyColorIsValid && (
+                <span className={styles.fieldError}>
+                  Informe uma cor hexadecimal válida, como #007BFF.
+                </span>
+              )}
+            </div>
+
+            <div className={styles.cardFooter}>
+              <span>
+                As alterações serão refletidas no menu, botões e destaques.
+              </span>
+              <button
+                type="submit"
+                className={styles.primaryButton}
+                disabled={!canSaveCompany}
+              >
+                {companySaving ? (
+                  <>
+                    <LoaderCircle className={styles.spinner} size={17} />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save size={17} />
+                    Salvar empresa
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          <form
+            className={`${styles.settingsCard} ${styles.securityCard}`}
+            onSubmit={handlePasswordSubmit}
+          >
+            <div className={styles.cardHeader}>
+              <span className={`${styles.cardIcon} ${styles.securityIcon}`}>
+                <ShieldCheck size={20} />
+              </span>
+              <div>
+                <h2>Segurança da conta</h2>
+                <p>Atualize sua senha de acesso com segurança.</p>
+              </div>
+            </div>
+
+            <label className={styles.field}>
+              <span>Senha atual</span>
+              <div className={styles.inputShell}>
+                <KeyRound size={17} />
+                <input
+                  type={showCurrentPassword ? "text" : "password"}
+                  name="currentPassword"
+                  value={passwordForm.currentPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Digite sua senha atual"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className={styles.passwordToggle}
+                  onClick={() =>
+                    setShowCurrentPassword((current) => !current)
+                  }
+                  aria-label={
+                    showCurrentPassword
+                      ? "Ocultar senha atual"
+                      : "Mostrar senha atual"
+                  }
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
+                </button>
+              </div>
+            </label>
+
+            <label className={styles.field}>
+              <span>Nova senha</span>
+              <div
+                className={`${styles.inputShell} ${
+                  passwordForm.newPassword && !passwordIsStrong
+                    ? styles.inputShellError
+                    : ""
+                }`}
+              >
+                <LockKeyhole size={17} />
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  name="newPassword"
+                  value={passwordForm.newPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Crie uma nova senha"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className={styles.passwordToggle}
+                  onClick={() => setShowNewPassword((current) => !current)}
+                  aria-label={
+                    showNewPassword
+                      ? "Ocultar nova senha"
+                      : "Mostrar nova senha"
+                  }
+                >
+                  {showNewPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
+                </button>
+              </div>
+            </label>
+
+            <label className={styles.field}>
+              <span>Confirmar nova senha</span>
+              <div
+                className={`${styles.inputShell} ${
+                  passwordForm.confirmPassword &&
+                  (!passwordsMatch || !passwordIsDifferent)
+                    ? styles.inputShellError
+                    : ""
+                }`}
+              >
+                <CheckCircle2 size={17} />
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  value={passwordForm.confirmPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Repita a nova senha"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className={styles.passwordToggle}
+                  onClick={() =>
+                    setShowConfirmPassword((current) => !current)
+                  }
+                  aria-label={
+                    showConfirmPassword
+                      ? "Ocultar confirmação"
+                      : "Mostrar confirmação"
+                  }
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
+                </button>
+              </div>
+              {passwordForm.confirmPassword && !passwordsMatch && (
+                <small className={styles.fieldError}>
+                  As novas senhas não coincidem.
+                </small>
+              )}
+              {passwordForm.confirmPassword &&
+                passwordsMatch &&
+                !passwordIsDifferent && (
+                  <small className={styles.fieldError}>
+                    A nova senha deve ser diferente da senha atual.
+                  </small>
+                )}
+            </label>
+
+            <div className={styles.requirements}>
+              <strong>Sua nova senha precisa ter:</strong>
+              <div className={styles.requirementsGrid}>
+                <span
+                  className={
+                    passwordHasMinimumLength ? styles.requirementMet : ""
+                  }
+                >
+                  <Check size={13} />
+                  8 caracteres
+                </span>
+                <span
+                  className={passwordHasNumber ? styles.requirementMet : ""}
+                >
+                  <Check size={13} />
+                  Um número
+                </span>
+                <span
+                  className={passwordHasSymbol ? styles.requirementMet : ""}
+                >
+                  <Check size={13} />
+                  Um símbolo
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className={styles.primaryButton}
+              disabled={!canUpdatePassword}
+              aria-busy={passwordLoading}
             >
-              <input
-                className={styles.input}
-                type="color"
-                value={companyColor}
-                onChange={(e) => {
-                  setCompanyColor(e.target.value);
-                  setCanSave(
-                    isPersonalDataChanged() ||
-                      isCompanyDataChanged(
-                        companyName,
-                        companyEmail,
-                        companyPhone,
-                        companyCpfCnpj,
-                        e.target.value,
-                      ),
-                  );
-                }}
-                style={{
-                  width: 40,
-                  height: 40,
-                  padding: 0,
-                  border: "none",
-                  background: "none",
-                }}
-              />
-              <input
-                className={styles.inputt}
-                type="text"
-                value={companyColor}
-                onChange={(e) => {
-                  setCompanyColor(e.target.value);
-                  setCanSave(
-                    isPersonalDataChanged() ||
-                      isCompanyDataChanged(
-                        companyName,
-                        companyEmail,
-                        companyPhone,
-                        companyCpfCnpj,
-                        e.target.value,
-                      ),
-                  );
-                }}
-                style={{
-                  marginLeft: 12,
-                  fontSize: 13,
-                  width: 90,
-                  borderColor: "transparent",
-                }}
-                maxLength={9}
-                placeholder="#000000"
-              />
-            </div>
-          </div>
-        </div>
+              {passwordLoading ? (
+                <>
+                  <LoaderCircle className={styles.spinner} size={17} />
+                  Alterando senha...
+                </>
+              ) : (
+                <>
+                  <LockKeyhole size={17} />
+                  Alterar senha
+                </>
+              )}
+            </button>
 
-        <div className={styles.formSection}>
-          <div className={styles.sectionIcon}>🔒</div>
-          <h3 className={styles.sectionTitle}>Alterar senha de segurança</h3>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Senha Atual</label>
-            <div className={styles.passwordWrapper}>
-              <input
-                type={showCurrentPassword ? "text" : "password"}
-                name="senhaAtual"
-                value={formData.senhaAtual}
-                onChange={handleChange}
-                className={styles.input}
-              />
-              <button
-                type="button"
-                className={styles.passwordToggle}
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+            {passwordFeedback && (
+              <div
+                className={`${styles.passwordFeedback} ${
+                  passwordFeedback.type === "success"
+                    ? styles.passwordFeedbackSuccess
+                    : styles.passwordFeedbackError
+                }`}
+                role={passwordFeedback.type === "error" ? "alert" : "status"}
               >
-                {showCurrentPassword ? <Eye size={18} /> : <EyeOff size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Nova Senha</label>
-            <div className={styles.passwordWrapper}>
-              <input
-                type={showNewPassword ? "text" : "password"}
-                name="novaSenha"
-                value={formData.novaSenha}
-                onChange={handleChange}
-                className={styles.input}
-              />
-              <button
-                type="button"
-                className={styles.passwordToggle}
-                onClick={() => setShowNewPassword(!showNewPassword)}
-              >
-                {showNewPassword ? <Eye size={18} /> : <EyeOff size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Confirmar Nova Senha</label>
-            <div className={styles.passwordWrapper}>
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                name="confirmarSenha"
-                value={formData.confirmarSenha}
-                onChange={handleChange}
-                className={styles.input}
-              />
-              <button
-                type="button"
-                className={styles.passwordToggle}
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? <Eye size={18} /> : <EyeOff size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.hint}>
-            <strong>Dica:</strong> Use pelo menos 8 caracteres, incluindo
-            números e símbolos para uma conta mais segura
-          </div>
+                {passwordFeedback.type === "success" ? (
+                  <CheckCircle2 size={18} />
+                ) : (
+                  <AlertCircle size={18} />
+                )}
+                <span>{passwordFeedback.message}</span>
+              </div>
+            )}
+          </form>
         </div>
       </div>
     </main>

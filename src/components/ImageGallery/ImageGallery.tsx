@@ -2,6 +2,8 @@ import { Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
 import styles from "./ImageGallery.module.css";
 
 interface ImageGalleryProps {
+  className?: string;
+  label?: string;
   previews: string[];
   selectedIndex: number;
   imageNames: string[];
@@ -11,6 +13,8 @@ interface ImageGalleryProps {
 }
 
 export function ImageGallery({
+  className,
+  label = "Fotos do produto",
   previews,
   selectedIndex,
   imageNames,
@@ -19,8 +23,8 @@ export function ImageGallery({
   onRemoveImage,
 }: ImageGalleryProps) {
   return (
-    <div className={styles.gallery}>
-      <div className={styles.label}>Fotos do produto</div>
+    <div className={`${styles.gallery} ${className ?? ""}`}>
+      <div className={styles.label}>{label}</div>
 
       <div className={styles.previewContainer}>
         {previews.length > 0 ? (

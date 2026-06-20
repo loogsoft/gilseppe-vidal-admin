@@ -314,7 +314,6 @@
 
 .submit:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(246, 196, 15, 0.4);
 }
 
 .submit:active {
@@ -331,6 +330,51 @@
 .loading {
   display: inline-flex;
   align-items: center;
+}
+
+.logoPreviewCircle {
+  width: 200px;
+  height: 200px;
+  margin: 0 auto 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.logoDropZone {
+  min-height: 90px;
+  padding: 12px;
+  border: 1.5px dashed var(--border-default);
+  border-radius: 14px;
+  background: var(--surface-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.logoDropZone:hover {
+  border-color: var(--highlight-primary-semp);
+  background: var(--hover-bg);
+}
+
+.logoDropTitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.logoDropHint {
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .support {
@@ -465,7 +509,6 @@
 
 .verifyButton:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(246, 196, 15, 0.4);
 }
 
 .verifyButton:active {
@@ -502,13 +545,13 @@
 }
 
 .toastLink {
-  color: #b91c1c;
+  color: var(--status-danger);
   font-weight: 600;
   text-decoration: underline;
 }
 
 .toastLink:hover {
-  color: #991b1b;
+  color: color-mix(in srgb, var(--status-danger) 82%, white);
 }
 
 .backBtn {
@@ -636,5 +679,10 @@
   .card {
     padding: 36px 24px 32px;
     border-radius: 16px;
+  }
+
+  .logoPreviewCircle {
+    width: 160px;
+    height: 160px;
   }
 }

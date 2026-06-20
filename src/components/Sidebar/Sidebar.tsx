@@ -1,24 +1,29 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { FiSettings, FiChevronDown, FiUsers } from "react-icons/fi";
+import { FiSettings, FiUsers } from "react-icons/fi";
 import styles from "./Sidebar.module.css";
 import { IoExitOutline } from "react-icons/io5";
 import { useAuth } from "../../contexts/useAuth";
-import { useEffect, useState } from "react";
+import type { SvgIconComponent } from "@mui/icons-material";
 import {
   Dashboard,
   Store,
   ShoppingCart,
   People,
   Notifications,
-  BarChart,
   CreditCardRounded,
-  Casino,
   WorkspacePremium,
 } from "@mui/icons-material";
 import { UserTypeEnum } from "../../dtos/enums/user-type.enum";
 
-// Estrutura dinâmica do menu
-const menu = [
+type MenuItem = {
+  type: "item";
+  icon: SvgIconComponent;
+  label: string;
+  path: string;
+  color: string;
+};
+
+const menu: MenuItem[] = [
   {
     type: "item",
     icon: Dashboard,
@@ -61,41 +66,40 @@ const menu = [
     path: "/credit",
     color: "#ffd900",
   },
-  {
-    type: "group",
-    icon: BarChart,
-    label: "Estratégias",
-    color: "#438fe1",
-    key: "estrategias",
-    children: [
-      {
-        type: "item",
-        icon: Casino,
-        label: "Roleta",
-        path: "/roulette",
-        color: "#6C63FF",
-      },
-    ],
-  },
+  // {
+  //   type: "group",
+  //   icon: BarChart,
+  //   label: "Estratégias",
+  //   color: "#438fe1",
+  //   key: "estrategias",
+  //   children: [
+  //     {
+  //       type: "item",
+  //       icon: Casino,
+  //       label: "Roleta",
+  //       path: "/roulette",
+  //       color: "#6C63FF",
+  //     },
+  //   ],
+  // },
 ];
 
 export function Sidebar() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
-  const [openGroups, setOpenGroups] = useState<{ [key: string]: boolean }>({});
-  const [name, setName] = useState("");
-
-  useEffect(() => {
+  const name = (() => {
     const companyData = localStorage.getItem("company");
-    if (companyData) {
-      const company = JSON.parse(companyData);
-      if (company.companyName) {
-        setName(company.companyName || company.name || "");
-      } else {
-        setName("Loog System");
-      }
+    if (!companyData) return "Loog System";
+    try {
+      const company = JSON.parse(companyData) as {
+        companyName?: string;
+        name?: string;
+      };
+      return company.companyName || company.name || "Loog System";
+    } catch {
+      return "Loog System";
     }
-  }, []);
+  })();
 
   function handleLogout() {
     logout();
@@ -113,7 +117,7 @@ export function Sidebar() {
     .join("")
     .slice(0, 2);
 
-  const renderItem = (item: any) => {
+  const renderItem = (item: MenuItem) => {
     return (
       <NavLink
         key={item.path}
@@ -126,55 +130,10 @@ export function Sidebar() {
         <item.icon
           className={styles.icon}
           style={{ color: item.color }}
-          size={20}
+          fontSize="small"
         />
         <span>{item.label}</span>
       </NavLink>
-    );
-  };
-
-  const renderGroup = (group: any) => {
-    const isOpen = !!openGroups[group.key];
-    return (
-      <div key={group.key}>
-        <button
-          type="button"
-          className={styles.linkk}
-          onClick={() =>
-            setOpenGroups((prev) => ({
-              ...prev,
-              [group.key]: !prev[group.key],
-            }))
-          }
-          aria-expanded={isOpen}
-        >
-          <group.icon
-            className={styles.icon}
-            style={{ color: group.color }}
-            size={20}
-          />
-          <span style={{ flex: 1, textAlign: "left", fontSize: 15 }}>
-            {group.label}
-          </span>
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginLeft: 2,
-              transition: "transform 0.2s",
-              transform: isOpen ? "rotate(180deg)" : "none",
-            }}
-          >
-            <FiChevronDown size={18} color="#B0B3B9" />
-          </span>
-        </button>
-        <div
-          className={isOpen ? styles.submenuList : styles.submenuListHidden}
-          style={{ paddingLeft: 20, marginTop: 0 }}
-        >
-          {isOpen && group.children.map((child: any) => renderItem(child))}
-        </div>
-      </div>
     );
   };
 
@@ -205,9 +164,7 @@ export function Sidebar() {
         <div className={styles.footerDivider} />
 
         <nav className={styles.menu}>
-          {menu.map((node) =>
-            node.type === "group" ? renderGroup(node) : renderItem(node),
-          )}
+          {menu.map(renderItem)}
         </nav>
       </div>
 

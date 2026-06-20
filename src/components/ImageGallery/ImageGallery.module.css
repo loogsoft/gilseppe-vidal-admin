@@ -8,7 +8,7 @@
   position: absolute;
   left: 0px;
   top: 50%;
-  background-color: "#fff";
+  background-color: var(--surface);
   transform: translateY(-50%);
   border: none;
   border-radius: 50%;
@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: center;
   z-index: 2;
-  color: #000000;
+  color: var(--text-primary);
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.2s;
@@ -32,7 +32,7 @@
   position: absolute;
   right: 0px;
   top: 50%;
-  background-color: "#fff";
+  background-color: var(--surface);
   transform: translateY(-50%);
   border: none;
   border-radius: 50%;
@@ -42,7 +42,7 @@
   align-items: center;
   justify-content: center;
   z-index: 2;
-  color: #000000;
+  color: var(--text-primary);
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.2s;
@@ -206,7 +206,6 @@
 .emptyAddBtn:hover {
   border-color: var(--highlight-primary);
   color: var(--highlight-primary);
-  background: rgba(246, 196, 15, 0.05);
 }
 
 .thumbnailsContainer {
@@ -273,7 +272,6 @@
 .addThumbnail:hover {
   border-color: var(--highlight-primary);
   color: var(--highlight-primary);
-  background: rgba(246, 196, 15, 0.08);
 }
 
 .tip {

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState, type JSX } from "react";
 import styles from "./Dashboard.module.css";
 import {
   ResponsiveContainer,
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -24,7 +25,7 @@ import StatCard from "../../components/StatCard/StatCard";
 import { ProductService } from "../../service/Product.service";
 import { StockMovementService } from "../../service/Stock-movement.service";
 import type { StockMovementResponseDto } from "../../dtos/response/stock-movement-response.dto";
-import { useAuth } from "../../contexts/useAuth";
+import { getLowStockEntries } from "../../utils/productStock";
 
 type MetricCard = {
   label: string;
@@ -37,9 +38,20 @@ type MetricCard = {
 
 type Period = "day" | "week" | "month";
 
+type SalesChartPoint = {
+  name: string;
+  fullLabel: string;
+  revenue: number;
+  sales: number;
+};
+
 type CustomTooltipProps = {
   active?: boolean;
-  payload?: Array<{ value?: number | string }>;
+  payload?: Array<{
+    dataKey?: string;
+    value?: number | string;
+    payload?: SalesChartPoint;
+  }>;
   label?: string;
 };
 
@@ -50,13 +62,136 @@ const METRIC_ICONS: Record<MetricCard["icon"], JSX.Element> = {
   top: <FiAward />,
 };
 
+const WEEK_DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"];
+
+function toNumber(value: number | string | null | undefined) {
+  const amount = Number(value ?? 0);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatBRL(value: number) {
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function formatCompactBRL(value: number) {
+  const abs = Math.abs(value);
+
+  if (abs >= 1000000) {
+    return (
+      "R$ " +
+      (value / 1000000).toLocaleString("pt-BR", {
+        maximumFractionDigits: 1,
+      }) +
+      " mi"
+    );
+  }
+
+  if (abs >= 1000) {
+    return (
+      "R$ " +
+      (value / 1000).toLocaleString("pt-BR", {
+        maximumFractionDigits: 1,
+      }) +
+      " mil"
+    );
+  }
+
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
+}
+
+function getMovementRevenue(movement: StockMovementResponseDto) {
+  const storedPrice = toNumber(movement.price);
+
+  if (storedPrice > 0) {
+    return storedPrice;
+  }
+
+  return toNumber(movement.variation?.price) * Number(movement.quantity || 0);
+}
+
+function startOfDay(value: Date) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function endOfDay(value: Date) {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date;
+}
+
+function getPeriodRange(period: Period, reference = new Date()) {
+  if (period === "day") {
+    return {
+      start: startOfDay(reference),
+      end: endOfDay(reference),
+    };
+  }
+
+  if (period === "week") {
+    const start = startOfDay(reference);
+    const day = start.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    start.setDate(start.getDate() + mondayOffset);
+
+    const end = endOfDay(start);
+    end.setDate(start.getDate() + 6);
+
+    return { start, end };
+  }
+
+  const start = new Date(reference.getFullYear(), reference.getMonth(), 1);
+  const end = endOfDay(
+    new Date(reference.getFullYear(), reference.getMonth() + 1, 0),
+  );
+
+  return { start, end };
+}
+
+function formatChartDate(value: Date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  }).format(value);
+}
+
+function getPeriodLabel(period: Period) {
+  if (period === "day") return "Hoje";
+  if (period === "week") return "Esta semana";
+  return "Este mês";
+}
+
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
-  const value = Number(payload[0]?.value ?? 0);
+  const point = payload[0]?.payload;
+  const revenue = Number(
+    payload.find((item) => item.dataKey === "revenue")?.value ?? 0,
+  );
+  const sales = Number(
+    payload.find((item) => item.dataKey === "sales")?.value ?? 0,
+  );
+
   return (
     <div className={styles.tooltip}>
-      <div className={styles.tooltipTitle}>{label}</div>
-      <div className={styles.tooltipValue}>R$ {(value * 13).toFixed(2)}</div>
+      <div className={styles.tooltipTitle}>{point?.fullLabel ?? label}</div>
+      <div className={styles.tooltipRow}>
+        <span className={styles.tooltipDot} />
+        <span>Faturamento</span>
+        <strong>{formatBRL(revenue)}</strong>
+      </div>
+      <div className={styles.tooltipRow}>
+        <span className={`${styles.tooltipDot} ${styles.tooltipDotLine}`} />
+        <span>Vendas</span>
+        <strong>{sales.toLocaleString("pt-BR")} un.</strong>
+      </div>
     </div>
   );
 }
@@ -73,101 +208,143 @@ export function Dashboard() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
-  const { user } = useAuth();
-  const companyId = user?.companyId;
+  const periodRange = useMemo(() => getPeriodRange(period), [period]);
   const periodMovements = useMemo(() => {
-    const now = new Date();
     return recentMovements.filter((m) => {
       const d = new Date(m.createdAt);
-      if (period === "day") {
-        return (
-          d.getFullYear() === now.getFullYear() &&
-          d.getMonth() === now.getMonth() &&
-          d.getDate() === now.getDate()
-        );
-      }
-      if (period === "week") {
-        return now.getTime() - d.getTime() <= 7 * 24 * 60 * 60 * 1000;
-      }
-      return (
-        d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-      );
+      return d >= periodRange.start && d <= periodRange.end;
     });
-  }, [recentMovements, period]);
+  }, [recentMovements, periodRange]);
+
+  const salesMovements = useMemo(
+    () => periodMovements.filter((m) => m.type === "OUT"),
+    [periodMovements],
+  );
 
   const totalVendas = useMemo(
     () =>
-      periodMovements
-        .filter((m) => m.type === "OUT")
-        .reduce((acc, m) => acc + m.quantity, 0),
-    [periodMovements],
+      salesMovements.reduce((acc, movement) => acc + movement.quantity, 0),
+    [salesMovements],
   );
 
   const totalFaturamento = useMemo(
     () =>
-      periodMovements
-        .filter((m) => m.type === "OUT")
-        .reduce(
-          (acc, m) => acc + Number(m.price || m.variation?.price || 0),
-          0,
-        ),
-    [periodMovements],
+      salesMovements.reduce(
+        (acc, movement) => acc + getMovementRevenue(movement),
+        0,
+      ),
+    [salesMovements],
   );
+  const periodLabel = getPeriodLabel(period);
   const chartColors = {
-    primary: "var(--highlight-primary)",
-    secondary: "var(--highlight-secondary)",
+    revenue: "var(--highlight-primary)",
+    revenueEnd: "var(--highlight-secondary)",
+    sales: "#2563eb",
     muted: "var(--text-muted)",
     grid: "var(--border-default)",
   };
 
-  const chartData = useMemo(() => {
-    const map: Record<string, number> = {};
+  const chartData = useMemo<SalesChartPoint[]>(() => {
+    const buckets: SalesChartPoint[] = [];
 
-    periodMovements
-      .filter((m) => m.type === "OUT")
-      .forEach((m) => {
-        const d = new Date(m.createdAt);
-        let key = "";
+    if (period === "day") {
+      for (let hour = 0; hour < 24; hour += 1) {
+        const hourLabel = String(hour).padStart(2, "0") + "h";
+        buckets.push({
+          name: hourLabel,
+          fullLabel: hourLabel + " às " + String(hour).padStart(2, "0") + ":59",
+          revenue: 0,
+          sales: 0,
+        });
+      }
+    }
 
-        if (period === "day") {
-          key = `${String(d.getHours()).padStart(2, "0")}h`;
-        }
+    if (period === "week") {
+      for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+        const date = new Date(periodRange.start);
+        date.setDate(periodRange.start.getDate() + dayIndex);
+        buckets.push({
+          name: WEEK_DAYS[dayIndex],
+          fullLabel: WEEK_DAYS[dayIndex] + ", " + formatChartDate(date),
+          revenue: 0,
+          sales: 0,
+        });
+      }
+    }
 
-        if (period === "week") {
-          const days = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"];
-          key = days[d.getDay()];
-        }
+    if (period === "month") {
+      const totalDays = new Date(
+        periodRange.start.getFullYear(),
+        periodRange.start.getMonth() + 1,
+        0,
+      ).getDate();
 
-        if (period === "month") {
-          const week = Math.ceil(d.getDate() / 7);
-          key = `SEM ${week}`;
-        }
+      for (let day = 1; day <= totalDays; day += 1) {
+        const date = new Date(
+          periodRange.start.getFullYear(),
+          periodRange.start.getMonth(),
+          day,
+        );
+        buckets.push({
+          name: String(day).padStart(2, "0"),
+          fullLabel: formatChartDate(date),
+          revenue: 0,
+          sales: 0,
+        });
+      }
+    }
 
-        map[key] = (map[key] || 0) + m.quantity;
-      });
+    salesMovements.forEach((movement) => {
+      const date = new Date(movement.createdAt);
+      let index = -1;
 
-    return Object.entries(map).map(([name, value]) => ({
-      name,
-      value,
-    }));
-  }, [periodMovements, period]);
+      if (period === "day") {
+        index = date.getHours();
+      }
+
+      if (period === "week") {
+        index = Math.floor(
+          (startOfDay(date).getTime() - periodRange.start.getTime()) /
+            86400000,
+        );
+      }
+
+      if (period === "month") {
+        index = date.getDate() - 1;
+      }
+
+      const bucket = buckets[index];
+      if (!bucket) return;
+
+      bucket.sales += movement.quantity;
+      bucket.revenue += getMovementRevenue(movement);
+    });
+
+    return buckets;
+  }, [period, periodRange, salesMovements]);
+  const chartHasData = chartData.some(
+    (item) => item.revenue > 0 || item.sales > 0,
+  );
   useEffect(() => {
-         if(companyId)
-    try {
-      const totalProduct: any = async () => {
-        const data = await ProductService.findAll(companyId);
+    const totalProduct = async () => {
+      try {
+        const data = await ProductService.findAll();
         setStockIten(data.length);
 
-        const low = data.filter((p) => (p.stock ?? 0) <= p.lowStock);
+        const low = data.filter(
+          (product) => getLowStockEntries(product).length > 0,
+        );
         setLowStock(low.length);
-      };
-      totalProduct();
-    } catch (error) {}
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    void totalProduct();
   }, []);
 
   useEffect(() => {
-    if(companyId)
-    StockMovementService.findAll(companyId)
+    StockMovementService.findAll()
       .then((data) => {
         const sorted = [...data].sort(
           (a, b) =>
@@ -175,7 +352,9 @@ export function Dashboard() {
         );
         setRecentMovements(sorted);
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.error(error);
+      });
   }, []);
 
   const filteredMovements = useMemo(() => {
@@ -303,60 +482,106 @@ export function Dashboard() {
           <div>
             <div className={styles.panelTitle}>Performance de Vendas</div>
             <div className={styles.panelSub}>
-              Análise comparativa de volume diário
+              {periodLabel} com faturamento e quantidade vendida
             </div>
           </div>
 
-          <div className={styles.legend}>
-            <span className={styles.legendItem}>
-              {period === "day"
-                ? "Hoje"
-                : period === "week"
-                  ? "Esta Semana"
-                  : "Este Mês"}
-            </span>
+          <div className={styles.chartSummary}>
+            <div className={styles.chartSummaryItem}>
+              <span>Faturamento</span>
+              <strong>{formatBRL(totalFaturamento)}</strong>
+            </div>
+            <div className={styles.chartSummaryItem}>
+              <span>Vendas</span>
+              <strong>{totalVendas.toLocaleString("pt-BR")} un.</strong>
+            </div>
           </div>
         </div>
 
+        <div className={styles.chartLegend}>
+          <span className={styles.chartLegendItem}>Faturamento</span>
+          <span
+            className={`${styles.chartLegendItem} ${styles.chartLegendLine}`}
+          >
+            Vendas
+          </span>
+        </div>
+
         <div className={styles.chartWrap}>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart
-              key={theme}
-              data={chartData}
-              margin={{ top: 8, right: 8, left: 8, bottom: 6 }}
-            >
-              <defs>
-                <linearGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0%"
-                    stopColor={chartColors.primary}
-                    stopOpacity={0.9}
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor={chartColors.secondary}
-                    stopOpacity={0.9}
-                  />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke={chartColors.grid} vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: chartColors.muted, fontSize: 11 }}
-                tickMargin={10}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis hide />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar
-                dataKey="value"
-                fill="url(#barFill)"
-                radius={[12, 12, 12, 12]}
-                barSize={12}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          {chartHasData ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart
+                key={theme + period}
+                data={chartData}
+                margin={{ top: 16, right: 18, left: 4, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="revenueBarFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor={chartColors.revenue}
+                      stopOpacity={0.92}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={chartColors.revenueEnd}
+                      stopOpacity={0.72}
+                    />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  stroke={chartColors.grid}
+                  strokeDasharray="4 8"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="name"
+                  interval={period === "month" ? 2 : period === "day" ? 2 : 0}
+                  tick={{ fill: chartColors.muted, fontSize: 11 }}
+                  tickMargin={12}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  yAxisId="revenue"
+                  tickFormatter={formatCompactBRL}
+                  tick={{ fill: chartColors.muted, fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={70}
+                />
+                <YAxis yAxisId="sales" orientation="right" hide />
+                <Tooltip content={<CustomTooltip />} cursor={false} />
+                <Bar
+                  yAxisId="revenue"
+                  dataKey="revenue"
+                  name="Faturamento"
+                  fill="url(#revenueBarFill)"
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={period === "month" ? 18 : 42}
+                />
+                <Line
+                  yAxisId="sales"
+                  type="monotone"
+                  dataKey="sales"
+                  name="Vendas"
+                  stroke={chartColors.sales}
+                  strokeWidth={3}
+                  dot={false}
+                  activeDot={{
+                    r: 5,
+                    stroke: "var(--surface)",
+                    strokeWidth: 3,
+                  }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className={styles.chartEmpty}>
+              <FiShoppingCart />
+              <span>Sem vendas no período selecionado</span>
+            </div>
+          )}
         </div>
       </div>
 

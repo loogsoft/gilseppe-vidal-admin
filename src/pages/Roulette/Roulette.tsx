@@ -13,13 +13,11 @@ import { CustomSelect } from "../../components/CustomSelect/CustomSelect";
 import { FiSearch, FiFilter } from "react-icons/fi";
 import { FilterModal } from "../../components/FilterModal/FilterModal";
 import type { CategoryKey } from "../../types/Product-type";
-import { useAuth } from "../../contexts/useAuth";
 
-// Declarar products/setProducts ANTES de qualquer uso
-const useProductsState = () => useState<ProductResponse[]>([]);
+const WHEEL_SIZE = 260;
 
 export default function RouletteAdmin() {
-  const [products, setProducts] = useProductsState();
+  const [products, setProducts] = useState<ProductResponse[]>([]);
 
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -30,8 +28,6 @@ export default function RouletteAdmin() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
-  const { user } = useAuth();
-  const companyId = user?.companyId;
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [activeCat, setActiveCat] = useState<CategoryKey>("all");
   type SortOption = "price-asc" | "price-desc" | "name-asc" | null;
@@ -79,7 +75,6 @@ export default function RouletteAdmin() {
     if (categoryToFilter !== "all") {
       current = current.filter((p: ProductResponse) => {
         return String(p.category) === String(categoryToFilter);
-        return false;
       });
     }
     const trimmed = query.trim().toLowerCase();
@@ -129,7 +124,10 @@ export default function RouletteAdmin() {
     setEditValues({ ...prizesBack[idx] });
   };
 
-  const handleEditChange = (field: keyof PrizeRequestDto, value: any) => {
+  const handleEditChange = (
+    field: keyof PrizeRequestDto,
+    value: PrizeRequestDto[keyof PrizeRequestDto],
+  ) => {
     setEditValues((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -158,7 +156,7 @@ export default function RouletteAdmin() {
       const updated = [...prizesBack];
       updated[editingIndex] = { ...updated[editingIndex], ...data };
       setPrizesBack(updated);
-    } catch (e) {
+    } catch {
       alert("Erro ao atualizar prêmio. Tente novamente.");
     }
     setEditingIndex(null);
@@ -176,17 +174,16 @@ export default function RouletteAdmin() {
 
   useEffect(() => {
     const findAllProducts = async () => {
-      if(companyId)
       try {
-        const data = await ProductService.findAll(companyId);
+        const data = await ProductService.findAll();
         setProducts(Array.isArray(data) ? data : []);
-      } catch (error) {}
+      } catch {
+        setProducts([]);
+      }
     };
     findAllProducts();
   }, []);
-  const size = 260;
-
-  const drawWheel = () => {
+  const drawWheel = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -195,10 +192,10 @@ export default function RouletteAdmin() {
 
     // Usar prizesBack para a pré-visualização
     const previewList = prizesBack;
-    const radius = size / 2;
+    const radius = WHEEL_SIZE / 2;
     const arc = previewList.length > 0 ? (2 * Math.PI) / previewList.length : 0;
 
-    ctx.clearRect(0, 0, size, size);
+    ctx.clearRect(0, 0, WHEEL_SIZE, WHEEL_SIZE);
 
     previewList.forEach((prize, i) => {
       const angle = i * arc;
@@ -218,11 +215,11 @@ export default function RouletteAdmin() {
       ctx.fillText(prize.name, radius - 10, 5);
       ctx.restore();
     });
-  };
+  }, [prizesBack]);
 
   useEffect(() => {
     drawWheel();
-  }, [prizesBack]);
+  }, [drawWheel]);
 
   useEffect(() => {
     const fetchPrizes = async () => {
@@ -232,7 +229,11 @@ export default function RouletteAdmin() {
     fetchPrizes();
   }, []);
 
-  const handlePrizeFieldChange = (i: number, field: string, value: any) => {
+  const handlePrizeFieldChange = (
+    i: number,
+    field: keyof PrizeRequestDto,
+    value: PrizeRequestDto[keyof PrizeRequestDto],
+  ) => {
     const updated = [...prizes];
     updated[i] = { ...updated[i], [field]: value };
     setPrizes(updated);
@@ -256,17 +257,16 @@ export default function RouletteAdmin() {
     setLoading(true);
     try {
       for (const prize of prizes) {
-        const { id, createdAt, updatedAt, ...rest } = prize as any;
         const data = {
-          ...rest,
-          probability: Number(rest.probability),
+          ...prize,
+          probability: Number(prize.probability),
         };
         await PrizesService.create(data);
       }
       setPrizes([]);
       setCreateValues("not");
       setProductTab("products");
-    } catch (error) {
+    } catch {
       alert("Erro ao salvar prêmio. Tente novamente.");
     } finally {
       setLoading(false);
@@ -288,7 +288,7 @@ export default function RouletteAdmin() {
       );
       setIsDeleteModalOpen(false);
       setDeleteId(null);
-    } catch (e) {
+    } catch {
       alert("Erro ao deletar prêmio. Tente novamente.");
     }
   }, [deleteId]);
@@ -299,18 +299,10 @@ export default function RouletteAdmin() {
   );
 
   return (
-    <div
-      style={{
-        padding: 30,
-        fontFamily: "Inter, sans-serif",
-        background: "#F5F6F7",
-        minHeight: "100vh",
-        width: "100%",
-      }}
-    >
+    <div className={styles.rouletteRoot}>
       <div
         style={{
-          background: "#fff",
+          background: "var(--surface)",
           borderRadius: 12,
           padding: 24,
           marginBottom: 32,
@@ -322,21 +314,21 @@ export default function RouletteAdmin() {
         {prizesBack.length > 0 ? (
           <canvas
             ref={canvasRef}
-            width={size}
-            height={size}
+            width={WHEEL_SIZE}
+            height={WHEEL_SIZE}
             style={{
               marginTop: 10,
             }}
           />
         ) : (
-          <div style={{ marginTop: 20, color: "#bbb", fontSize: 15 }}>
+          <div style={{ marginTop: 20, color: "var(--text-muted)", fontSize: 15 }}>
             Register at least one prize to preview the roulette.
           </div>
         )}
         <p
           style={{
             fontSize: 12,
-            color: "#999",
+            color: "var(--text-muted)",
             marginTop: 10,
           }}
         >
@@ -371,7 +363,7 @@ export default function RouletteAdmin() {
         <div
           style={{
             display: "flex",
-            background: "#fff",
+            background: "var(--surface)",
             borderRadius: 32,
             width: 380,
             height: 37,
@@ -390,7 +382,8 @@ export default function RouletteAdmin() {
                 productTab === "create"
                   ? "var(--highlight-primary)"
                   : "transparent",
-              color: productTab === "create" ? "#fff" : "#B0B0B0",
+              color:
+                productTab === "create" ? "#fff" : "var(--text-secondary)",
               fontWeight: 500,
               fontSize: 14,
               borderRadius: 32,
@@ -411,7 +404,8 @@ export default function RouletteAdmin() {
                 productTab === "products"
                   ? "var(--highlight-primary)"
                   : "transparent",
-              color: productTab === "products" ? "#fff" : "#B0B0B0",
+              color:
+                productTab === "products" ? "#fff" : "var(--text-secondary)",
               fontWeight: 500,
               fontSize: 14,
               borderRadius: 32,
@@ -429,7 +423,7 @@ export default function RouletteAdmin() {
         <div style={{ marginBottom: 32 }}>
           <div
             style={{
-              background: "#fff",
+              background: "var(--surface)",
               borderRadius: 12,
               boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
               padding: 0,
@@ -440,7 +434,7 @@ export default function RouletteAdmin() {
               style={{
                 fontWeight: 700,
                 fontSize: 22,
-                color: "#222",
+                color: "var(--text-primary)",
                 padding: "24px 24px 10px 24px",
               }}
             >
@@ -457,8 +451,8 @@ export default function RouletteAdmin() {
                 <thead>
                   <tr
                     style={{
-                      background: "#F5F6F7",
-                      color: "#888",
+                      background: "var(--bg-primary)",
+                      color: "var(--text-muted)",
                       fontWeight: 600,
                       fontSize: 15,
                     }}
@@ -490,7 +484,7 @@ export default function RouletteAdmin() {
                       <td
                         colSpan={6}
                         style={{
-                          color: "#888",
+                          color: "var(--text-muted)",
                           textAlign: "center",
                           padding: 24,
                         }}
@@ -503,7 +497,12 @@ export default function RouletteAdmin() {
                     editingIndex === i ? (
                       <tr
                         key={i}
-                        style={{ background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}
+                        style={{
+                          background:
+                            i % 2 === 0
+                              ? "var(--surface)"
+                              : "var(--surface-muted)",
+                        }}
                       >
                         <td style={{ padding: "12px 8px", fontWeight: 600 }}>
                           <input
@@ -514,7 +513,7 @@ export default function RouletteAdmin() {
                             style={{
                               padding: 6,
                               borderRadius: 4,
-                              border: "1px solid #ddd",
+                              border: "1px solid var(--border-default)",
                               width: 100,
                             }}
                           />
@@ -528,7 +527,7 @@ export default function RouletteAdmin() {
                             style={{
                               padding: 6,
                               borderRadius: 4,
-                              border: "1px solid #ddd",
+                              border: "1px solid var(--border-default)",
                               width: 100,
                             }}
                           />
@@ -542,7 +541,7 @@ export default function RouletteAdmin() {
                             style={{
                               padding: 6,
                               borderRadius: 4,
-                              border: "1px solid #ddd",
+                              border: "1px solid var(--border-default)",
                               width: 120,
                             }}
                           />
@@ -561,7 +560,7 @@ export default function RouletteAdmin() {
                             style={{
                               padding: 6,
                               borderRadius: 4,
-                              border: "1px solid #ddd",
+                              border: "1px solid var(--border-default)",
                               width: 60,
                             }}
                           />
@@ -580,7 +579,7 @@ export default function RouletteAdmin() {
                             style={{
                               padding: 6,
                               borderRadius: 4,
-                              border: "1px solid #ddd",
+                              border: "1px solid var(--border-default)",
                               width: 60,
                             }}
                           />
@@ -597,7 +596,7 @@ export default function RouletteAdmin() {
                             style={{
                               padding: 6,
                               borderRadius: 4,
-                              border: "1px solid #ddd",
+                              border: "1px solid var(--border-default)",
                             }}
                           >
                             <option value="active">Active</option>
@@ -608,7 +607,7 @@ export default function RouletteAdmin() {
                           <button
                             onClick={handleEditSave}
                             style={{
-                              background: "#388e3c",
+                              background: "var(--status-success)",
                               border: "none",
                               color: "#fff",
                               borderRadius: 6,
@@ -625,9 +624,9 @@ export default function RouletteAdmin() {
                           <button
                             onClick={handleEditCancel}
                             style={{
-                              background: "#fff",
-                              border: "1px solid #b71c1c",
-                              color: "#b71c1c",
+                              background: "var(--surface)",
+                              border: "1px solid var(--status-danger)",
+                              color: "var(--status-danger)",
                               borderRadius: 6,
                               padding: "4px 12px",
                               fontWeight: 600,
@@ -643,7 +642,12 @@ export default function RouletteAdmin() {
                     ) : (
                       <tr
                         key={i}
-                        style={{ background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}
+                        style={{
+                          background:
+                            i % 2 === 0
+                              ? "var(--surface)"
+                              : "var(--surface-muted)",
+                        }}
                       >
                         <td style={{ padding: "12px 8px", fontWeight: 600 }}>
                           {p.name}
@@ -668,7 +672,9 @@ export default function RouletteAdmin() {
                         <td
                           style={{
                             padding: "12px 8px",
-                            color: p.active ? "#388e3c" : "#b71c1c",
+                            color: p.active
+                              ? "var(--status-success)"
+                              : "var(--status-danger)",
                             fontWeight: 600,
                           }}
                         >
@@ -727,7 +733,7 @@ export default function RouletteAdmin() {
       {productTab === "create" && (
         <div
           style={{
-            background: "#fff",
+            background: "var(--surface)",
             borderRadius: 12,
             padding: 24,
             marginBottom: 32,
@@ -742,7 +748,7 @@ export default function RouletteAdmin() {
               marginBottom: 18,
             }}
           >
-            <h3 style={{ margin: 0, color: "#222" }}>Adicionar Prêmios</h3>
+            <h3 style={{ margin: 0, color: "var(--text-primary)" }}>Adicionar Prêmios</h3>
           </div>
           <div
             style={{
@@ -787,10 +793,10 @@ export default function RouletteAdmin() {
                     flexDirection: "column",
                     gap: 30,
                     marginBottom: 18,
-                    border: "1px solid #eee",
+                    border: "1px solid var(--border-default)",
                     borderRadius: 8,
                     padding: 14,
-                    background: "#fafafa",
+                    background: "var(--surface-muted)",
                     position: "relative",
                     width: "100%",
                     height: "100%",
@@ -821,7 +827,7 @@ export default function RouletteAdmin() {
                     style={{
                       padding: 15,
                       borderRadius: 6,
-                      border: "1px solid #ddd",
+                      border: "1px solid var(--border-default)",
                       marginTop: 50,
                       fontSize: 16,
                     }}
@@ -835,7 +841,7 @@ export default function RouletteAdmin() {
                     style={{
                       padding: 15,
                       borderRadius: 6,
-                      border: "1px solid #ddd",
+                      border: "1px solid var(--border-default)",
                       fontSize: 16,
                     }}
                   />
@@ -848,7 +854,7 @@ export default function RouletteAdmin() {
                     style={{
                       padding: 15,
                       borderRadius: 6,
-                      border: "1px solid #ddd",
+                      border: "1px solid var(--border-default)",
                       fontSize: 16,
                     }}
                   />
@@ -868,7 +874,7 @@ export default function RouletteAdmin() {
                       style={{
                         padding: 15,
                         borderRadius: 6,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--border-default)",
                         width: 120,
                         fontSize: 16,
                       }}
@@ -888,7 +894,7 @@ export default function RouletteAdmin() {
                       style={{
                         padding: 10,
                         borderRadius: 6,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--border-default)",
                         width: 120,
                       }}
                     />
@@ -1013,24 +1019,22 @@ export default function RouletteAdmin() {
                 imageUrl={[
                   ...(p.images || []),
                   ...(p.variations || [])
-                    .filter((v: any) => v.imageUrl)
-                    .map((v: any) => ({
-                      url: Array.isArray(v.imageUrl)
-                        ? v.imageUrl[0] || ""
-                        : v.imageUrl || "",
-                      fileName: v.name || "",
-                      id: v.id || "",
+                    .filter((variation) => variation.imageUrl)
+                    .map((variation) => ({
+                      url: variation.imageUrl || "",
+                      fileName: variation.name || "",
+                      id: variation.id || "",
                       isPrimary: false,
                     })),
                 ]}
-                stock={p.stock}
+                stock={p.stock ?? undefined}
                 available
                 color={p.color}
                 colors={Array.from(
                   new Set([
                     ...(p.color ? [p.color] : []),
                     ...((p.variations || [])
-                      .map((v: any) => v.color)
+                      .map((variation) => variation.color)
                       .filter(Boolean) as string[]),
                   ]),
                 )}
@@ -1039,7 +1043,7 @@ export default function RouletteAdmin() {
                   new Set([
                     ...(p.size ? [p.size] : []),
                     ...((p.variations || [])
-                      .map((v: any) => v.size)
+                      .map((variation) => variation.size)
                       .filter(Boolean) as string[]),
                   ]),
                 )}

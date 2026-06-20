@@ -12,25 +12,34 @@ import logoLight from "../../assets/logo-preta.png";
 import logoDark from "../../assets/logo-preta.png";
 import { CircularProgress } from "@mui/material";
 import { toast } from "react-toastify";
+import axios from "axios";
 import { HealthService } from "../../service/health.service";
 import { useTheme } from "../../contexts/useTheme";
 import DashboardPreview from "../../components/DashboardPreview/DashboardPreview";
-import { ChevronLeft, Moon, Sun, Headset } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronLeft,
+  Headset,
+  MessageCircle,
+  Moon,
+  Sun,
+  WifiOff,
+} from "lucide-react";
 import { IoStorefront } from "react-icons/io5";
 import { CompanyService } from "../../service/Company.service";
 import { UserTypeEnum } from "../../dtos/enums/user-type.enum";
 import type { CompanyResponseDto } from "../../dtos/response/company-response.dto";
 
+const SUPPORT_PHONE = "64999663524";
+const SUPPORT_MESSAGE =
+  "Olá! Aqui é do Gerenciamento de Estoque LOOG SYSTEM. Estou com um problema ao acessar o painel, podem me ajudar?";
+const SUPPORT_URL = `https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(
+  SUPPORT_MESSAGE,
+)}`;
+
 export default function Login() {
   const { theme, toggleTheme } = useTheme();
-  const requestFailureMessage =
-    "Erro ao processar sua solicitacao. Tente novamente em alguns instantes. Se o problema persistir, entre em contato com o suporte.";
-  const supportPhone = "64999663524";
-  const supportMessage =
-    "Ola! Aqui e do Gerenciamento de Estoque LOOG SYSTEM. Estou com um problema ao acessar o painel, podem me ajudar?";
-  const supportUrl = `https://wa.me/${supportPhone}?text=${encodeURIComponent(
-    supportMessage,
-  )}`;
+  const supportUrl = SUPPORT_URL;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // const [email, setEmail] = useState("admin.giuseppevidal@gmail.com");
@@ -48,6 +57,7 @@ export default function Login() {
   >("login");
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const codeRefs = useRef<Array<HTMLInputElement | null>>([]);
   const navigate = useNavigate();
@@ -171,34 +181,70 @@ export default function Login() {
 
   const showErrorToast = useCallback(() => {
     toast.error(
-      <span>
-        {requestFailureMessage}{" "}
+      <div className={styles.connectionToastContent}>
+        <span className={styles.connectionToastIcon} aria-hidden>
+          <WifiOff size={20} />
+        </span>
+        <div className={styles.connectionToastText}>
+          <strong>Não foi possível conectar</strong>
+          <span>
+            Verifique sua internet e tente novamente. Se o problema continuar,
+            fale com o suporte.
+          </span>
+        </div>
         <a
-          className={styles.toastLink}
+          className={styles.connectionToastAction}
           href={supportUrl}
           target="_blank"
           rel="noreferrer"
         >
-          Falar no WhatsApp
+          <MessageCircle size={16} />
+          Suporte
         </a>
-      </span>,
+      </div>,
+      {
+        className: styles.connectionToast,
+        progressClassName: styles.connectionToastProgress,
+        icon: false,
+        position: "top-right",
+        autoClose: 6500,
+      },
     );
-  }, [requestFailureMessage, supportUrl]);
+  }, [supportUrl]);
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
 
       if (step === "login") {
+        if (!email.trim() || !password) {
+          setLoginError("Preencha o e-mail e a senha para continuar.");
+          return;
+        }
+
         try {
           setLoading(true);
+          setLoginError(null);
           const data = await UserService.verifyEmail({ email, password });
           setCompanyId(data.companyId);
           companyIdRef.current = data.companyId;
           localStorage.setItem("companyId", String(data.companyId));
           setStep("verify");
-        } catch {
-          showErrorToast();
+        } catch (error) {
+          if (axios.isAxiosError(error) && error.response?.status === 401) {
+            setLoginError(
+              "E-mail ou senha incorretos. Confira os dados e tente novamente.",
+            );
+          } else if (
+            axios.isAxiosError(error) &&
+            (!error.response || error.response.status >= 500)
+          ) {
+            showErrorToast();
+          } else {
+            setLoginError(
+              "Não foi possível validar seus dados. Revise as informações e tente novamente.",
+            );
+          }
         } finally {
           setLoading(false);
         }
@@ -440,14 +486,21 @@ export default function Login() {
             {step === "login" ? (
               <>
                 <label className={styles.label}>E-mail</label>
-                <div className={styles.inputWrap}>
+                <div
+                  className={`${styles.inputWrap} ${loginError ? styles.inputWrapError : ""}`}
+                >
                   <input
                     className={styles.input}
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setLoginError(null);
+                    }}
                     placeholder="exemplo@pinha.com.br"
                     type="email"
                     autoComplete="email"
+                    aria-invalid={Boolean(loginError)}
+                    aria-describedby={loginError ? "login-error" : undefined}
                   />
                 </div>
 
@@ -455,14 +508,21 @@ export default function Login() {
                   Senha
                 </label>
 
-                <div className={styles.inputWrap}>
+                <div
+                  className={`${styles.inputWrap} ${loginError ? styles.inputWrapError : ""}`}
+                >
                   <input
                     className={styles.input}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setLoginError(null);
+                    }}
                     placeholder="••••••••"
                     type={showPass ? "text" : "password"}
                     autoComplete="current-password"
+                    aria-invalid={Boolean(loginError)}
+                    aria-describedby={loginError ? "login-error" : undefined}
                   />
                   <button
                     type="button"
@@ -473,6 +533,18 @@ export default function Login() {
                     {showPass ? <FiEyeOff /> : <FiEye />}
                   </button>
                 </div>
+
+                {loginError && (
+                  <div
+                    id="login-error"
+                    className={styles.loginError}
+                    role="alert"
+                    aria-live="polite"
+                  >
+                    <AlertCircle size={17} aria-hidden />
+                    <span>{loginError}</span>
+                  </div>
+                )}
 
                 <label className={styles.check}>
                   <input

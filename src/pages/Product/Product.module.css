@@ -30,7 +30,7 @@
 .headerActions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .addBtn {
@@ -103,6 +103,14 @@
   margin-bottom: 30px;
 }
 
+.searchGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 720px);
+  min-width: 0;
+}
+
 .search {
   flex: 1;
   display: flex;
@@ -113,9 +121,11 @@
   border-radius: 20px;
   height: 30px;
   color: var(--text-muted);
-  max-width: 400px;
-  padding: 0 12px;
-  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 650px;
+  padding: 0 3px 0 12px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .search:hover {
@@ -124,26 +134,75 @@
 
 .search:focus-within {
   border-color: var(--highlight-primary);
-  box-shadow: 0 0 0 2px var(--highlight-primary);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--highlight-primary) 18%, transparent);
 }
 
 .searchIcon {
+  flex: 0 0 auto;
   font-size: 16px;
   color: var(--text-muted);
+  transition: color 0.18s ease;
+}
+
+.search:focus-within .searchIcon {
+  color: var(--highlight-primary);
 }
 
 .searchInput {
   border: none;
   outline: none;
-  min-width: 400px;
+  min-width: 0;
   width: 100%;
+  height: 100%;
   font-size: 12px;
+  font-weight: 500;
   color: var(--text-primary);
   background: transparent;
 }
 
 .searchInput::placeholder {
   color: var(--text-muted);
+}
+
+.barcodeAction {
+  height: 24px;
+  flex: 0 0 auto;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--highlight-secondary);
+  color: var(--highlight-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.barcodeAction:hover,
+.barcodeAction:focus-visible {
+  outline: none;
+  background: var(--highlight-primary);
+  color: #fff;
+}
+
+@media (max-width: 520px) {
+  .searchGroup {
+    width: 100%;
+  }
+
+  .barcodeAction span {
+    display: none;
+  }
+
+  .barcodeAction {
+    width: 34px;
+    padding: 0;
+  }
 }
 
 .filterActions {

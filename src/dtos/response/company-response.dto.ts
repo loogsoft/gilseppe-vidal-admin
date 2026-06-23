@@ -5,5 +5,6 @@ export interface CompanyResponseDto {
   companyPhone: number;
   companyCpfCnpj: number;
   color: string;
+  imageUrl?: string | null;
   date: Date;
 }

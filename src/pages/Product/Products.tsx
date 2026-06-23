@@ -1,5 +1,5 @@
 import styles from "./Product.module.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FiAlertTriangle,
   FiBox,
@@ -11,7 +11,7 @@ import {
 import EntityCard from "../../components/EntityCard/EntityCard";
 import { SkeletonCard } from "../../components/SkeletonCard/SkeletonCard";
 import { FilterModal } from "../../components/FilterModal/FilterModal";
-import { Plus } from "lucide-react";
+import { Barcode, Plus } from "lucide-react";
 import type { CategoryKey } from "../../types/Product-type";
 import { ProductService } from "../../service/Product.service";
 import type { ProductResponse } from "../../dtos/response/product-response.dto";
@@ -33,6 +33,7 @@ export function Products() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const navigate = useNavigate();
@@ -115,7 +116,8 @@ export function Products() {
       current = current.filter(
         (p) =>
           p.name.toLowerCase().includes(trimmed) ||
-          p.id.toLowerCase().includes(trimmed),
+          p.id.toLowerCase().includes(trimmed)||
+          p.barCode?.toLowerCase().includes(trimmed),
       );
     }
 
@@ -151,7 +153,6 @@ export function Products() {
   }, [filtered, currentPage, pageSize]);
 
   const pages = Array.from({ length: maxPage }, (_, index) => index + 1);
-
 
   const counts = useMemo(() => {
     const countBy = (category: ProductCategoryEnum) =>
@@ -210,10 +211,7 @@ export function Products() {
         return (
           sum +
           (p.variations ?? []).reduce((variationSum, variation) => {
-            if (
-              variation.isActive !== false &&
-              Number(variation.stock) > 0
-            ) {
+            if (variation.isActive !== false && Number(variation.stock) > 0) {
               return variationSum + Number(variation.price || 0);
             }
             return variationSum;
@@ -334,18 +332,31 @@ export function Products() {
 
       <div className={styles.gridContainer}>
         <div className={styles.filters}>
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div className={styles.searchGroup}>
             <div className={styles.search}>
               <FiSearch className={styles.searchIcon} />
               <input
+                ref={searchInputRef}
                 className={styles.searchInput}
                 type="text"
-                placeholder="Buscar produtos..."
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Busque por nome ou leia o código de barras"
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value);
                 }}
               />
+              <button
+                className={styles.barcodeAction}
+                type="button"
+                onClick={() => searchInputRef.current?.focus()}
+                aria-label="Posicionar cursor para leitura do código de barras"
+                title="Usar leitor de código de barras"
+              >
+                <Barcode size={17} aria-hidden="true" />
+                <span>Ler código</span>
+              </button>
             </div>
             <CustomSelect
               options={LISTPAG.map((c) => ({

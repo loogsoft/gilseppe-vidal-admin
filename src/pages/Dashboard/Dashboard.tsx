@@ -591,7 +591,7 @@ export function Dashboard() {
         </div>
 
         <div className={styles.filters}>
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div className={styles.searchGroup}>
             <div className={styles.search}>
               <FiSearch className={styles.searchIcon} />
               <input

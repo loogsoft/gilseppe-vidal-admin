@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import axios from "axios";
 import {
   AlertCircle,
@@ -14,6 +14,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   Mail,
+  ImagePlus,
   Palette,
   Phone,
   Save,
@@ -38,6 +39,7 @@ type CompanySettings = {
   phone: string;
   document: string;
   color: string;
+  imageUrl: string;
 };
 
 const EMPTY_COMPANY: CompanySettings = {
@@ -46,6 +48,7 @@ const EMPTY_COMPANY: CompanySettings = {
   phone: "",
   document: "",
   color: "#007BFF",
+  imageUrl: "",
 };
 
 const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
@@ -85,6 +88,7 @@ function normalizeCompany(data: {
   companyPhone?: number | string;
   companyCpfCnpj?: number | string;
   color?: string;
+  imageUrl?: string | null;
 }): CompanySettings {
   return {
     name: data.companyName ?? "",
@@ -94,6 +98,7 @@ function normalizeCompany(data: {
     color: HEX_COLOR_REGEX.test(data.color ?? "")
       ? String(data.color)
       : "#007BFF",
+    imageUrl: data.imageUrl ?? "",
   };
 }
 
@@ -131,6 +136,9 @@ export function Profille() {
   );
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [companySaving, setCompanySaving] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState("");
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -195,8 +203,9 @@ export function Profille() {
       company.email !== savedCompany.email ||
       company.phone !== savedCompany.phone ||
       company.document !== savedCompany.document ||
-      company.color !== savedCompany.color,
-    [company, savedCompany],
+      company.color !== savedCompany.color ||
+      logoFile !== null,
+    [company, savedCompany, logoFile],
   );
   const canSaveCompany =
     companyChanged &&
@@ -212,18 +221,39 @@ export function Profille() {
     setCompany((current) => ({ ...current, [key]: value }));
   };
 
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const supportedTypes = ["image/png", "image/jpeg", "image/svg+xml"];
+    if (!supportedTypes.includes(file.type) || file.size > 2 * 1024 * 1024) {
+      toast.error("Selecione uma imagem PNG, JPG ou SVG de até 2MB.");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => setLogoPreview(String(reader.result ?? ""));
+    reader.readAsDataURL(file);
+    setLogoFile(file);
+  };
+
   const handleCompanySubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!companyId || !canSaveCompany) return;
 
     try {
       setCompanySaving(true);
+      const imageUrl = logoFile
+        ? await CompanyService.uploadLogo(logoFile)
+        : company.imageUrl || undefined;
       const updatedCompany = await CompanyService.update(companyId, {
         companyName: company.name.trim(),
         companyEmail: company.email.trim(),
         companyPhone: Number(company.phone.replace(/\D/g, "")) || 0,
         companyCpfCnpj: Number(company.document.replace(/\D/g, "")) || 0,
         color: company.color,
+        imageUrl,
       });
 
       if (authenticatedUserId) {
@@ -235,7 +265,11 @@ export function Profille() {
       const normalizedCompany = normalizeCompany(updatedCompany);
       setCompany(normalizedCompany);
       setSavedCompany(normalizedCompany);
+      setLogoFile(null);
+      setLogoPreview("");
+      if (logoInputRef.current) logoInputRef.current.value = "";
       localStorage.setItem("company", JSON.stringify(updatedCompany));
+      window.dispatchEvent(new Event("company-updated"));
       document.documentElement.style.setProperty(
         "--highlight-primary",
         normalizedCompany.color,
@@ -336,6 +370,7 @@ export function Profille() {
     .slice(0, 2)
     .toUpperCase();
   const profileEmail = company.email || user?.email || "E-mail não informado";
+  const displayedLogo = logoPreview || company.imageUrl;
 
   return (
     <main className={styles.page}>
@@ -363,7 +398,13 @@ export function Profille() {
         )}
 
         <section className={styles.profileCard}>
-          <div className={styles.profileAvatar}>{initials}</div>
+          <div className={styles.profileAvatar}>
+            {displayedLogo ? (
+              <img src={displayedLogo} alt={`Logo ${displayName}`} />
+            ) : (
+              initials
+            )}
+          </div>
           <div className={styles.profileMain}>
             <div className={styles.profileHeading}>
               <h2>{displayName}</h2>
@@ -488,6 +529,40 @@ export function Profille() {
                   />
                 </div>
               </label>
+            </div>
+
+            <div className={styles.logoField}>
+              <div className={styles.logoFieldPreview}>
+                {displayedLogo ? (
+                  <img src={displayedLogo} alt={`Logo ${displayName}`} />
+                ) : (
+                  <Building2 size={28} />
+                )}
+              </div>
+              <div className={styles.logoFieldContent}>
+                <strong>Logo da empresa</strong>
+                <p>
+                  {company.imageUrl
+                    ? "Substitua a imagem exibida no menu e na identidade da empresa."
+                    : "Adicione a imagem que será exibida no menu e na identidade da empresa."}
+                </p>
+                <input
+                  ref={logoInputRef}
+                  className={styles.logoInput}
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  onChange={handleLogoChange}
+                />
+                <button
+                  type="button"
+                  className={styles.logoButton}
+                  onClick={() => logoInputRef.current?.click()}
+                >
+                  <ImagePlus size={15} />
+                  {displayedLogo ? "Trocar logo" : "Adicionar logo"}
+                </button>
+                <small>PNG, JPG ou SVG de até 2MB.</small>
+              </div>
             </div>
 
             <div className={styles.brandField}>

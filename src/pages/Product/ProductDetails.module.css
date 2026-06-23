@@ -208,6 +208,58 @@
   line-height: 1.45;
 }
 
+.barCodeControl {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.barCodeLeadingIcon {
+  position: absolute;
+  left: 14px;
+  z-index: 1;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: color 0.18s ease;
+}
+
+.barCodeInput {
+  padding-left: 44px !important;
+  padding-right: 116px !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.barCodeControl:focus-within .barCodeLeadingIcon {
+  color: var(--highlight-primary);
+}
+
+.barCodeFocusButton {
+  position: absolute;
+  right: 6px;
+  height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--highlight-secondary);
+  color: var(--highlight-primary);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.barCodeFocusButton:hover:not(:disabled) {
+  background: var(--highlight-primary);
+  color: #fff;
+}
+
+.barCodeFocusButton:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .input,
 .select,
 .textarea {
@@ -872,6 +924,23 @@
 }
 
 @media (max-width: 440px) {
+  .barCodeInput {
+    padding-right: 44px !important;
+  }
+
+  .barCodeFocusButton {
+    width: 34px;
+    overflow: hidden;
+    padding: 0;
+    color: transparent;
+  }
+
+  .barCodeFocusButton::after {
+    content: "⌖";
+    color: var(--highlight-primary);
+    font-size: 17px;
+  }
+
   .typeSelector {
     grid-template-columns: 1fr;
   }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./DiscountStock.module.css";
 import {
   FiDollarSign,
@@ -28,6 +28,12 @@ import {
   getProductTotalStock,
   productHasAvailableStock,
 } from "../../utils/productStock";
+import { Barcode } from "lucide-react";
+import { toast } from "react-toastify";
+import {
+  StockScanCart,
+  type StockScanCartItem,
+} from "../../components/StockScanCart/StockScanCart";
 type StockLevel = "all" | "ok" | "low" | "critical";
 type SortOption = "alpha" | "priceAsc" | "priceDesc" | "stockAsc" | "stockDesc";
 
@@ -45,6 +51,9 @@ export function DiscountStock() {
   const [stockHistory, setStockHistory] =
     useState<StockMovementResponseDto[]>([]);
   const [search, setSearch] = useState("");
+  const stockSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const [scanCartItems, setScanCartItems] = useState<StockScanCartItem[]>([]);
+  const [isScanCartOpen, setIsScanCartOpen] = useState(false);
   const [category, setCategory] = useState("all");
   const [view, setView] = useState<"stock" | "history">("stock");
   const [historyTypeFilter, setHistoryTypeFilter] = useState("all");
@@ -149,7 +158,7 @@ export function DiscountStock() {
       if (!productHasAvailableStock(item)) return false;
 
       const matchesSearch = term
-        ? `${item.name} ${item.description ?? ""} ${item.category}`
+        ? `${item.name} ${item.description ?? ""} ${item.category} ${item.barCode}`
             .toLowerCase()
             .includes(term)
         : true;
@@ -235,6 +244,72 @@ export function DiscountStock() {
 
   const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
 
+  const addProductToScanCart = (product: ProductResponse) => {
+    const availableStock = getProductTotalStock(product);
+
+    setScanCartItems((currentItems) => {
+      const existingItem = currentItems.find(
+        (item) => item.product.id === product.id,
+      );
+
+      if (existingItem && existingItem.quantity >= availableStock) {
+        toast.warning("A quantidade selecionada atingiu o estoque disponível.");
+        return currentItems;
+      }
+
+      if (existingItem) {
+        return currentItems.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
+        );
+      }
+
+      return [...currentItems, { product, quantity: 1 }];
+    });
+
+    setIsScanCartOpen(true);
+    setSearch("");
+    requestAnimationFrame(() => stockSearchInputRef.current?.focus());
+  };
+
+  const handleScanSearchKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+    const term = search.trim().toLowerCase();
+    if (!term) return;
+
+    const exactProduct = products.find(
+      (product) =>
+        productHasAvailableStock(product) &&
+        (product.barCode?.trim().toLowerCase() === term ||
+          product.id.toLowerCase() === term),
+    );
+    const product = exactProduct ?? (filteredItems.length === 1 ? filteredItems[0] : null);
+
+    if (!product) {
+      toast.error("Nenhum produto encontrado para este código.");
+      return;
+    }
+
+    addProductToScanCart(product);
+  };
+
+  const changeScanCartQuantity = (productId: string, quantity: number) => {
+    setScanCartItems((currentItems) =>
+      currentItems
+        .map((item) => {
+          if (item.product.id !== productId) return item;
+          const maxStock = getProductTotalStock(item.product);
+          return { ...item, quantity: Math.min(quantity, maxStock) };
+        })
+        .filter((item) => item.quantity > 0),
+    );
+  };
+
   // Calcula o faturamento total
   const faturamento = useMemo(() => {
     return stockHistory.reduce(
@@ -315,15 +390,29 @@ export function DiscountStock() {
       {view === "stock" ? (
         <section className={styles.tablePanel}>
           <div className={styles.filters}>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <div className={styles.search}>
+            <div className={styles.searchGroup}>
+              <div className={`${styles.search} ${styles.stockSearch}`}>
                 <FiSearch className={styles.searchIcon} />
                 <input
+                  ref={stockSearchInputRef}
                   className={styles.searchInput}
-                  placeholder="Buscar produto, SKU ou categoria..."
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Busque por produto ou leia o código de barras"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
+                  onKeyDown={handleScanSearchKeyDown}
                 />
+                <button
+                  className={styles.barcodeAction}
+                  type="button"
+                  onClick={() => stockSearchInputRef.current?.focus()}
+                  aria-label="Posicionar cursor para leitura do código de barras"
+                  title="Usar leitor de código de barras"
+                >
+                  <Barcode size={17} aria-hidden="true" />
+                  <span>Ler código</span>
+                </button>
               </div>
               <CustomSelect
                 options={LISTPAG.map((c) => ({
@@ -488,7 +577,7 @@ export function DiscountStock() {
       ) : (
         <section className={styles.tablePanel}>
           <div className={styles.filters}>
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div className={styles.searchGroup}>
               <div className={styles.search}>
                 <FiSearch className={styles.searchIcon} />
                 <input
@@ -686,6 +775,17 @@ export function DiscountStock() {
           console.log("Restauração confirmada:", data);
           setVoltarEstoqueItem(null);
         }}
+      />
+      <StockScanCart
+        isOpen={isScanCartOpen}
+        items={scanCartItems}
+        onClose={() => setIsScanCartOpen(false)}
+        onChangeQuantity={changeScanCartQuantity}
+        onRemove={(productId) =>
+          setScanCartItems((items) =>
+            items.filter((item) => item.product.id !== productId),
+          )
+        }
       />
     </div>
   );

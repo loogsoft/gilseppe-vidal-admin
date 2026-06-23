@@ -4,4 +4,5 @@ export interface CompanyRequestDto {
   companyPhone: number;
   companyCpfCnpj: number;
   color: string;
+  imageUrl?: string;
 }

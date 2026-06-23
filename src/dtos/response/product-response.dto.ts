@@ -6,6 +6,7 @@ import type { SupplierResponseDto } from "./supplier-response.dto";
 
 export interface ProductResponse {
   id: string;
+  barCode?: string;
   name: string;
   description?: string;
   category: ProductCategoryEnum;

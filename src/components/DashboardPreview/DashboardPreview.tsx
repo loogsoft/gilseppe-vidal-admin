@@ -26,7 +26,7 @@ export default function DashboardPreview({
       <aside className={styles.sidebar}>
         <div className={styles.logo}>
           {imageUrl ? (
-            <img src={imageUrl} alt="Logo" className={styles.logoIcon} />
+            <img src={imageUrl} alt="Logo" className={styles.logoImage} />
           ) : (
             <div className={styles.logoIcon} style={{ color }} />
           )}
@@ -55,12 +55,6 @@ export default function DashboardPreview({
         </nav>
       </aside>
       <main className={styles.main}>
-        <div className={styles.header}>
-          <span className={styles.userName}>Marcao</span>
-          <span className={styles.logoMini} style={{ color }}>
-            <b>L</b>
-          </span>
-        </div>
         <div className={styles.cardsRow}>
           <div className={styles.card}>
             <div className={styles.cardIcon} style={{ color }}>

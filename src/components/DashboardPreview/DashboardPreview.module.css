@@ -109,6 +109,12 @@
   margin-right: 0;
   display: inline-block;
 }
+.logoImage {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  object-fit: contain;
+}
 .logoText {
   font-weight: 700;
   font-size: 6px;

@@ -7,7 +7,7 @@ import { ProductService } from "../../service/Product.service";
 import type { ProductRequest } from "../../dtos/request/product-request.dto";
 import type { ProductVariationRequestDto } from "../../dtos/request/product-variation-request.dto";
 import type { ProductVariationResponseDto } from "../../dtos/response/product-variation-response.dto";
-import { Save, Plus, Pencil, X } from "lucide-react";
+import { Save, Plus, Pencil, X, Barcode } from "lucide-react";
 import { ImageGallery } from "../../components/ImageGallery/ImageGallery";
 import EntityCard from "../../components/EntityCard/EntityCard";
 import { ButtonBack } from "../../components/ButtonBack/ButtonBack";
@@ -15,6 +15,7 @@ import { FiTrash2 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { SupplierService } from "../../service/Supplier.service";
 import type { SupplierResponseDto } from "../../dtos/response/supplier-response.dto";
+import NewCodeBarModal from "../../components/NewCodeBarModal/NewCodeBarModal";
 
 type Variation = ProductVariationRequestDto | ProductVariationResponseDto;
 
@@ -38,10 +39,14 @@ export function ProductsDetails() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const variationFileInputRef = useRef<HTMLInputElement | null>(null);
   const colorPickerRef = useRef<HTMLInputElement | null>(null);
+  const barCodeInputRef = useRef<HTMLInputElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [editingColor, setEditingColor] = useState(false);
+  const [barCode, setBarCode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [newCodeBarModal, setNewCodeBarModal] = useState(false);
 
   const [productType, setProductType] = useState<
     (typeof ProductType)[keyof typeof ProductType]
@@ -133,7 +138,9 @@ export function ProductsDetails() {
     const loadSuppliers = async () => {
       try {
         const response = await SupplierService.findAll();
-        setSuppliers(Array.isArray(response) ? response : response.data ?? []);
+        setSuppliers(
+          Array.isArray(response) ? response : (response.data ?? []),
+        );
       } catch {
         toast.error("Não foi possível carregar os fornecedores.");
       } finally {
@@ -152,6 +159,7 @@ export function ProductsDetails() {
 
       try {
         const data = await ProductService.findOne(id);
+        setBarCode(data.barCode ?? "");
         setName(data.name ?? "");
         setDescription(data.description ?? "");
         setCategory(data.category ?? ProductCategoryEnum.SHIRT);
@@ -399,8 +407,7 @@ export function ProductsDetails() {
       price: variationPrice.trim()
         ? Number(variationPrice.replace(",", "."))
         : 0,
-      stock:
-        variationStock && !isNaN(Number(variationStock)) ? stockValue : 0,
+      stock: variationStock && !isNaN(Number(variationStock)) ? stockValue : 0,
       color: variationColor.trim(),
       size: variationSize.trim(),
       isActive: variationIsActive,
@@ -411,8 +418,7 @@ export function ProductsDetails() {
         !isNaN(Number(variationLowStock))
           ? Number(variationLowStock)
           : 0,
-      images:
-        variationImageFiles.length > 0 ? variationImageFiles : undefined,
+      images: variationImageFiles.length > 0 ? variationImageFiles : undefined,
       imageUrl:
         variationImageFiles.length === 0 && targetIndex !== null
           ? variations[targetIndex].imageUrl
@@ -441,6 +447,12 @@ export function ProductsDetails() {
 
   const onSave = async () => {
     if (saving) return;
+
+    if (!barCode.trim()) {
+      toast.error("Informe o código de barras do produto.");
+      barCodeInputRef.current?.focus();
+      return;
+    }
 
     if (!name.trim()) {
       toast.error("Informe o nome do produto.");
@@ -538,6 +550,7 @@ export function ProductsDetails() {
           })
         : undefined;
     const payload: ProductRequest = {
+      barCode: barCode.trim(),
       name: name.trim(),
       description: description.trim() || undefined,
       category,
@@ -555,14 +568,12 @@ export function ProductsDetails() {
         !isNaN(Number(lowStock))
           ? Number(lowStock)
           : 0,
-      variations:
-        productType === ProductType.VARIATION ? cleanVariations : [],
-      imageIds:
-        isEdit
-          ? productType === ProductType.UNIQUE
-            ? existingImageIds
-            : []
-          : undefined,
+      variations: productType === ProductType.VARIATION ? cleanVariations : [],
+      imageIds: isEdit
+        ? productType === ProductType.UNIQUE
+          ? existingImageIds
+          : []
+        : undefined,
       supplierId: supplierId.trim() || (isEdit ? null : undefined),
     };
 
@@ -684,7 +695,9 @@ export function ProductsDetails() {
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
-                <span className={styles.panelTitle}>Informações do produto</span>
+                <span className={styles.panelTitle}>
+                  Informações do produto
+                </span>
                 <p className={styles.panelDescription}>
                   Dados usados no catálogo e no controle de estoque.
                 </p>
@@ -721,13 +734,81 @@ export function ProductsDetails() {
                   </button>
                 </div>
                 <span className={styles.fieldHint}>
-                  Use variações quando o item tiver combinações de cor ou tamanho.
+                  Use variações quando o item tiver combinações de cor ou
+                  tamanho.
                 </span>
               </div>
 
               <label className={styles.field}>
+                <div>
+                  <span className={styles.label}>Código de barras *</span>
+                  <span
+                    style={{
+                      marginLeft: 20,
+                      fontSize: 10,
+                      color: "#ff9800",
+                      fontWeight: "600",
+                    }}
+                    onClick={() => setNewCodeBarModal(true)}
+                  >
+                    Produto não possui código?
+                  </span>
+                </div>
+                <div className={styles.barCodeControl}>
+                  <Barcode
+                    className={styles.barCodeLeadingIcon}
+                    size={20}
+                    aria-hidden="true"
+                  />
+                  <input
+                    ref={barCodeInputRef}
+                    className={`${styles.input} ${styles.barCodeInput}`}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-describedby="bar-code-hint"
+                    placeholder="Leia o código ou digite manualmente"
+                    value={barCode}
+                    onChange={(event) =>
+                      setBarCode(event.target.value.replace(/[\r\n\t]/g, ""))
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && barCode.trim()) {
+                        event.preventDefault();
+                        nameInputRef.current?.focus();
+                      }
+                    }}
+                    maxLength={180}
+                    disabled={loadingProduct}
+                  />
+                  <button
+                    className={styles.barCodeFocusButton}
+                    type="button"
+                    onClick={() => barCodeInputRef.current?.focus()}
+                    disabled={loadingProduct}
+                    aria-label="Ativar campo para leitura do código de barras"
+                    title="Posicionar cursor para usar o leitor"
+                  >
+                    Usar leitor
+                  </button>
+                </div>
+                <span id="bar-code-hint" className={styles.fieldHint}>
+                  Posicione o cursor no campo e leia a etiqueta. Você também
+                  pode digitar o código manualmente.
+                </span>
+              </label>
+
+              <NewCodeBarModal
+                isOpen={newCodeBarModal}
+                onClose={() => setNewCodeBarModal(false)}
+                onGenerate={(code) => setBarCode(code)}
+              />
+
+              <label className={styles.field}>
                 <span className={styles.label}>Nome *</span>
                 <input
+                  ref={nameInputRef}
                   className={styles.input}
                   placeholder="Ex: Camisa social"
                   value={name}
@@ -1004,7 +1085,9 @@ export function ProductsDetails() {
             <section className={`${styles.panel} ${styles.variationPanel}`}>
               <div className={styles.panelHeader}>
                 <div>
-                  <span className={styles.panelTitle}>Variações do produto</span>
+                  <span className={styles.panelTitle}>
+                    Variações do produto
+                  </span>
                   <p className={styles.panelDescription}>
                     Cadastre cada combinação disponível de cor e tamanho.
                   </p>
@@ -1072,7 +1155,9 @@ export function ProductsDetails() {
                               <span className={styles.variationStep}>1</span>
                               <div>
                                 <strong>Características</strong>
-                                <small>Defina a cor e o tamanho da opção.</small>
+                                <small>
+                                  Defina a cor e o tamanho da opção.
+                                </small>
                               </div>
                             </div>
                             <div className={styles.variationInfoRow}>
@@ -1129,7 +1214,9 @@ export function ProductsDetails() {
                                         )
                                       ) && (
                                         <span
-                                          className={styles.colorSwatchCustomIcon}
+                                          className={
+                                            styles.colorSwatchCustomIcon
+                                          }
                                         >
                                           +
                                         </span>
@@ -1241,9 +1328,7 @@ export function ProductsDetails() {
                                         },
                                       )
                                     }
-                                    aria-pressed={
-                                      variationLowStockAlertEnabled
-                                    }
+                                    aria-pressed={variationLowStockAlertEnabled}
                                   >
                                     <span className={styles.toggleSlider} />
                                   </button>

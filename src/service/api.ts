@@ -2,7 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   // baseURL: "http://localhost:3000",
-  baseURL: "https://gilseppe-vidal-api-production.up.railway.app",
+  baseURL: "https://gilseppe-vidal-api.onrender.com",
   
 });
 

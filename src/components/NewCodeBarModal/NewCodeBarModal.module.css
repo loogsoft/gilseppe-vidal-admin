@@ -1,0 +1,179 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--overlay-backdrop);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.18s ease-out;
+}
+
+.modal {
+  position: relative;
+  width: min(100%, 410px);
+  padding: 28px;
+  border: 1px solid var(--border-default);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow-strong);
+  color: var(--text-primary);
+  text-align: center;
+  animation: slideUp 0.2s ease-out;
+}
+
+.closeIconButton {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.closeIconButton:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.iconWrapper {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 18px;
+  border-radius: 17px;
+  background: var(--highlight-secondary);
+  color: var(--highlight-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.description {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.printHint {
+  min-height: 42px;
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 11px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.printHint svg {
+  flex: 0 0 auto;
+  color: var(--highlight-primary);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.cancelButton,
+.generateButton {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.18s ease, border-color 0.18s ease,
+    transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cancelButton {
+  border: 1px solid var(--border-default);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.cancelButton:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-muted);
+}
+
+.generateButton {
+  border: 1px solid var(--highlight-primary);
+  background: var(--highlight-primary);
+  color: #fff;
+  box-shadow: 0 7px 16px
+    color-mix(in srgb, var(--highlight-primary) 22%, transparent);
+}
+
+.generateButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px
+    color-mix(in srgb, var(--highlight-primary) 28%, transparent);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+
+@media (max-width: 420px) {
+  .modal {
+    padding: 24px 18px 18px;
+    border-radius: 17px;
+  }
+
+  .actions {
+    grid-template-columns: 1fr;
+  }
+
+  .generateButton {
+    grid-row: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .modal {
+    animation: none;
+  }
+}

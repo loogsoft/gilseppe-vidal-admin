@@ -3,6 +3,13 @@ import type { CompanyResponseDto } from "../dtos/response/company-response.dto";
 import api from "./api";
 
 export const CompanyService = {
+  uploadLogo: async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await api.post<{ url: string }>("/upload", formData);
+    return response.data.url;
+  },
+
   create: async (dto: CompanyRequestDto) => {
     const response = await api.post("/company", dto);
     return response.data;

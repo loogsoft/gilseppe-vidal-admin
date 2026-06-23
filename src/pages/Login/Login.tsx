@@ -72,6 +72,7 @@ export default function Login() {
   //Personalize
   const [color, setColor] = useState("#ff9800");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
   const [companyId, setCompanyId] = useState("");
   const companyIdRef = useRef("");
@@ -79,13 +80,16 @@ export default function Login() {
   async function handleCreateCompanyAndUser() {
     setLoading(true);
     try {
+      const imageUrl = logoFile
+        ? await CompanyService.uploadLogo(logoFile)
+        : undefined;
       const payloadCompany = {
         companyName,
         companyEmail,
         companyPhone: Number(companyPhone.replace(/\D/g, "")),
         companyCpfCnpj: Number(companyCpfCnpj.replace(/\D/g, "")),
         color,
-        // imageUrl: logoPreview || "",
+        imageUrl,
       };
       const response = await CompanyService.create(payloadCompany);
       const createdCompanyId = response.id;
@@ -114,10 +118,21 @@ export default function Login() {
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
     if (file) {
+      const supportedTypes = ["image/png", "image/jpeg", "image/svg+xml"];
+      if (!supportedTypes.includes(file.type) || file.size > 2 * 1024 * 1024) {
+        toast.error("Selecione uma imagem PNG, JPG ou SVG de até 2MB.");
+        e.target.value = "";
+        setLogoFile(null);
+        setLogoPreview(null);
+        return;
+      }
+
+      setLogoFile(file);
       const reader = new FileReader();
       reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
       reader.readAsDataURL(file);
     } else {
+      setLogoFile(null);
       setLogoPreview(null);
     }
   }
@@ -784,7 +799,7 @@ export default function Login() {
                   <input
                     ref={logoInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/svg+xml"
                     style={{ display: "none" }}
                     onChange={handleLogoChange}
                   />

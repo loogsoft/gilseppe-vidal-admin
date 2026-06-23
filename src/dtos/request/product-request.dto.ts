@@ -3,6 +3,7 @@ import type { ProductStatusEnum } from "../enums/product-status.enum";
 import type { ProductVariationRequestDto } from "./product-variation-request.dto";
 
 export interface ProductRequest {
+  barCode?: string;
   name: string;
   description?: string;
   category: ProductCategoryEnum;

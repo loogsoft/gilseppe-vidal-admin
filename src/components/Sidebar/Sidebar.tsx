@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { FiSettings, FiUsers } from "react-icons/fi";
 import styles from "./Sidebar.module.css";
@@ -84,22 +85,38 @@ const menu: MenuItem[] = [
   // },
 ];
 
+function readCompanyBrand() {
+  const companyData = localStorage.getItem("company");
+  if (!companyData) return { name: "Loog System", imageUrl: undefined };
+  try {
+    const company = JSON.parse(companyData) as {
+      companyName?: string;
+      name?: string;
+      imageUrl?: string | null;
+    };
+    return {
+      name: company.companyName || company.name || "Loog System",
+      imageUrl: company.imageUrl || undefined,
+    };
+  } catch {
+    return { name: "Loog System", imageUrl: undefined };
+  }
+}
+
 export function Sidebar() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
-  const name = (() => {
-    const companyData = localStorage.getItem("company");
-    if (!companyData) return "Loog System";
-    try {
-      const company = JSON.parse(companyData) as {
-        companyName?: string;
-        name?: string;
-      };
-      return company.companyName || company.name || "Loog System";
-    } catch {
-      return "Loog System";
-    }
-  })();
+  const [companyBrand, setCompanyBrand] = useState(readCompanyBrand);
+
+  useEffect(() => {
+    const updateBrand = () => setCompanyBrand(readCompanyBrand());
+    window.addEventListener("company-updated", updateBrand);
+    window.addEventListener("storage", updateBrand);
+    return () => {
+      window.removeEventListener("company-updated", updateBrand);
+      window.removeEventListener("storage", updateBrand);
+    };
+  }, []);
 
   function handleLogout() {
     logout();
@@ -141,31 +158,31 @@ export function Sidebar() {
     <aside className={styles.sidebar}>
       <div>
         <div className={styles.brand}>
-          <div
-            style={{
-              border: "2px solid var(--highlight-primary)",
-              borderRadius: "30%",
-              padding: "3px 7px",
-            }}
-          >
-            <WorkspacePremium
-              style={{ fontSize: "30px", color: "var(--highlight-primary)" }}
-            />
+          <div className={styles.brandLogo}>
+            {companyBrand.imageUrl ? (
+              <img
+                src={companyBrand.imageUrl}
+                alt={`Logo ${companyBrand.name}`}
+                style={{ borderRadius: 100 }}
+              />
+            ) : (
+              <WorkspacePremium
+                style={{ fontSize: "30px", color: "var(--highlight-primary)" }}
+              />
+            )}
           </div>
           <div>
             <strong
               className={styles.brandTitle}
               style={{ fontSize: 18, letterSpacing: 2 }}
             >
-              {name}
+              {companyBrand.name}
             </strong>
           </div>
         </div>
         <div className={styles.footerDivider} />
 
-        <nav className={styles.menu}>
-          {menu.map(renderItem)}
-        </nav>
+        <nav className={styles.menu}>{menu.map(renderItem)}</nav>
       </div>
 
       <div className={styles.footer}>

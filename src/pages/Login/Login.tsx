@@ -40,8 +40,8 @@ const SUPPORT_URL = `https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(
 export default function Login() {
   const { theme, toggleTheme } = useTheme();
   const supportUrl = SUPPORT_URL;
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("giuseppevidal@gmail.com");
+  const [password, setPassword] = useState("12345678");
   // const [email, setEmail] = useState("admin.giuseppevidal@gmail.com");
   // const [password, setPassword] = useState("giuseppe.vidal@");
   const [confirmPassword, setConfirmPassword] = useState("");

@@ -19,6 +19,7 @@ import { CreditDetails } from "./pages/Credit/CreditDetails";
 import { CreditSaleDetails } from "./pages/Credit/CreditSaleDetails";
 import RegisterCompany from "./pages/registerCompany/RegisterCompany";
 import { Collaborators } from "./pages/Collaborators/Collaborators";
+import { MovementDetails } from "./pages/Movements/MovementDetails";
 
 export default function App() {
   const { isAuthenticated, loading } = useAuth();
@@ -88,6 +89,7 @@ export default function App() {
         <Route path="/credit" element={<Credit />} />
         <Route path="/credit-details/:id?" element={<CreditDetails />} />
         <Route path="/credit-sale-details/:id?" element={<CreditSaleDetails />} />
+        <Route path="/movement-details/:id" element={<MovementDetails />} />
       </Route>
     </Routes>
   );

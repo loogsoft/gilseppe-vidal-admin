@@ -54,6 +54,7 @@ export default function Login() {
     | "newCommunity4"
   >("login");
   const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const [codeError, setCodeError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -265,8 +266,15 @@ export default function Login() {
       }
 
       if (step === "verify") {
+        if (code.some((digit) => !digit)) {
+          setCodeError("Informe o código de 6 dígitos para continuar.");
+          codeRefs.current[code.findIndex((digit) => !digit)]?.focus();
+          return;
+        }
+
         try {
           setLoading(true);
+          setCodeError(null);
           const verify = await UserService.verificationToken({
             email,
             code: code.join(""),
@@ -329,10 +337,24 @@ export default function Login() {
           } catch {
             // A personalização visual é opcional e não bloqueia o login.
           }
-        } catch {
+        } catch (error) {
           setCode(["", "", "", "", "", ""]);
           codeRefs.current[0]?.focus();
-          showErrorToast();
+
+          if (axios.isAxiosError(error) && error.response?.status === 401) {
+            setCodeError(
+              "Código inválido ou expirado. Confira o código enviado e tente novamente.",
+            );
+          } else if (
+            axios.isAxiosError(error) &&
+            (!error.response || error.response.status >= 500)
+          ) {
+            showErrorToast();
+          } else {
+            setCodeError(
+              "Não foi possível validar o código. Tente novamente.",
+            );
+          }
         } finally {
           setTimeout(() => {
             setLoading(false);
@@ -375,6 +397,7 @@ export default function Login() {
       await UserService.verifyEmail({ email, password });
       setResendCooldown(60);
       setCode(["", "", "", "", "", ""]);
+      setCodeError(null);
       codeRefs.current[0]?.focus();
     } catch {
       showErrorToast();
@@ -388,6 +411,7 @@ export default function Login() {
     const next = [...code];
     next[index] = nextValue;
     setCode(next);
+    setCodeError(null);
     if (nextValue && index < code.length - 1) {
       codeRefs.current[index + 1]?.focus();
     }
@@ -414,6 +438,7 @@ export default function Login() {
       next[i] = pasted[i] || "";
     }
     setCode(next);
+    setCodeError(null);
     const focusIndex = Math.min(pasted.length, 5);
     codeRefs.current[focusIndex]?.focus();
   }
@@ -636,7 +661,7 @@ export default function Login() {
                   {code.map((digit, index) => (
                     <input
                       key={`code-${index}`}
-                      className={styles.codeInput}
+                      className={`${styles.codeInput} ${codeError ? styles.codeInputError : ""}`}
                       value={digit}
                       ref={(el) => {
                         codeRefs.current[index] = el;
@@ -646,10 +671,23 @@ export default function Login() {
                       onPaste={handleCodePaste}
                       inputMode="numeric"
                       maxLength={1}
+                      aria-invalid={Boolean(codeError)}
+                      aria-describedby={codeError ? "code-error" : undefined}
                       aria-label={`Código ${index + 1}`}
                     />
                   ))}
                 </div>
+                {codeError && (
+                  <div
+                    id="code-error"
+                    className={styles.loginError}
+                    role="alert"
+                    aria-live="polite"
+                  >
+                    <AlertCircle size={17} aria-hidden />
+                    <span>{codeError}</span>
+                  </div>
+                )}
                 <div className={styles.verifyNote}>
                   Por favor, insira o código para continuar.
                 </div>

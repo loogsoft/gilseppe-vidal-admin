@@ -639,6 +639,18 @@
   background: var(--surface);
 }
 
+.codeInputError,
+.codeInputError:focus {
+  border-bottom-color: #ef4444;
+  color: #b91c1c;
+}
+
+:global([data-theme="dark"]) .codeInputError,
+:global([data-theme="dark"]) .codeInputError:focus {
+  border-bottom-color: #fb7185;
+  color: #fecdd3;
+}
+
 .verifyNote {
   font-size: 11px;
   color: #bfc4cc;

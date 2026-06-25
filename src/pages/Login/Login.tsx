@@ -629,7 +629,7 @@ export default function Login() {
                   Enviamos um código de 6 dígitos para o seu e-mail
                   <span style={{ color: "var(--highlight-primary-semp)" }}>
                     {" "}
-                    {email}
+                    loogsystem@gmail.com
                   </span>
                 </div>
                 <div className={styles.codeRow}>

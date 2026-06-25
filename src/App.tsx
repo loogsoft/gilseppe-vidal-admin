@@ -20,34 +20,47 @@ import { CreditSaleDetails } from "./pages/Credit/CreditSaleDetails";
 import RegisterCompany from "./pages/registerCompany/RegisterCompany";
 import { Collaborators } from "./pages/Collaborators/Collaborators";
 import { MovementDetails } from "./pages/Movements/MovementDetails";
+import { UserTypeEnum } from "./dtos/enums/user-type.enum";
 
 export default function App() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const { checkStockAndNotify } = useMessageContext();
 
+  const canAccessApp = isAuthenticated && !!user;
+
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!canAccessApp) return;
+
     checkStockAndNotify();
-  }, [checkStockAndNotify, isAuthenticated]);
+  }, [checkStockAndNotify, canAccessApp]);
 
   useEffect(() => {
     const companyData = localStorage.getItem("company");
+
     if (companyData) {
       const company = JSON.parse(companyData);
+
       if (company.color) {
         document.documentElement.style.setProperty(
           "--highlight-primary",
           company.color,
         );
+
         function hexToRgba(hex: string, alpha: number) {
           let c = hex.replace("#", "");
-          if (c.length === 3) c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+
+          if (c.length === 3) {
+            c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+          }
+
           const num = parseInt(c, 16);
           const r = (num >> 16) & 255;
           const g = (num >> 8) & 255;
           const b = num & 255;
+
           return `rgba(${r},${g},${b},${alpha})`;
         }
+
         document.documentElement.style.setProperty(
           "--highlight-secondary",
           hexToRgba(company.color, 0.15),
@@ -57,21 +70,37 @@ export default function App() {
   }, []);
 
   if (loading) {
-    return null; // ou algum loader
+    return null;
   }
+
   return (
     <Routes>
       <Route
         path="/login"
-        element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />}
+        element={canAccessApp ? <Navigate to="/dashboard" replace /> : <Login />}
       />
-      <Route path="/register-company" element={<RegisterCompany />} />
+
+      <Route
+        path="/register-company"
+        element={
+          canAccessApp ? (
+            <RegisterCompany />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
       <Route
         element={
-          isAuthenticated ? <DashboardLayout /> : <Navigate to="/login" />
+          canAccessApp ? (
+            <DashboardLayout />
+          ) : (
+            <Navigate to="/login" replace />
+          )
         }
       >
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/discount-stock" element={<DiscountStock />} />
         <Route path="/produtos" element={<Products />} />
@@ -84,13 +113,27 @@ export default function App() {
         <Route path="/suppliers" element={<Supplier />} />
         <Route path="/supplier-details/:id?" element={<SupplierDetails />} />
         <Route path="/config/:id?" element={<Profille />} />
-        <Route path="/collaborators" element={<Collaborators />} />
+
+        {user?.userType === UserTypeEnum.ADMIN && (
+          <Route path="/collaborators" element={<Collaborators />} />
+        )}
+
         <Route path="/roulette" element={<Roleta />} />
         <Route path="/credit" element={<Credit />} />
         <Route path="/credit-details/:id?" element={<CreditDetails />} />
-        <Route path="/credit-sale-details/:id?" element={<CreditSaleDetails />} />
+        <Route
+          path="/credit-sale-details/:id?"
+          element={<CreditSaleDetails />}
+        />
         <Route path="/movement-details/:id" element={<MovementDetails />} />
       </Route>
+
+      <Route
+        path="*"
+        element={
+          <Navigate to={canAccessApp ? "/dashboard" : "/login"} replace />
+        }
+      />
     </Routes>
   );
 }

@@ -3,7 +3,6 @@ import { FiBell, FiMoon, FiSun } from "react-icons/fi";
 import { useTheme } from "../../contexts/useTheme";
 import { useAuth } from "../../contexts/useAuth";
 import { useMessageContext } from "../../contexts/useMessageContext";
-import { useNavigate } from "react-router-dom";
 import { Headset } from "lucide-react";
 type HeaderProps = {
   title: string;
@@ -14,7 +13,6 @@ export function Header({ title, isMessageModalOpen }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { messageCount } = useMessageContext();
-  const navigate = useNavigate();
 
   const userInitial = user?.name
     ? user.name.charAt(0).toUpperCase()
@@ -22,11 +20,6 @@ export function Header({ title, isMessageModalOpen }: HeaderProps) {
       ? user.email.charAt(0).toUpperCase()
       : "U";
 
-  const handleAvatarClick = () => {
-    if (user?.id) {
-      navigate(`/config/${user.id}`);
-    }
-  };
   const SUPPORT_PHONE = "64999663524";
   const SUPPORT_MESSAGE =
     "Olá! Sou usuário do sistema de Gerenciamento de Estoque da Loog System e estou enfrentando um problema. Poderiam me ajudar, por favor?";
@@ -74,12 +67,7 @@ export function Header({ title, isMessageModalOpen }: HeaderProps) {
           )}
         </button>
 
-        <button
-          className={styles.avatar}
-          onClick={handleAvatarClick}
-          aria-label="Perfil"
-          type="button"
-        >
+        <button className={styles.avatar} aria-label="Perfil" type="button">
           <span>{userInitial}</span>
         </button>
       </div>

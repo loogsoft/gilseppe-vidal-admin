@@ -187,49 +187,50 @@ export function Sidebar() {
 
       <div className={styles.footer}>
         <div className={styles.footerDivider} />
-        {user?.userType === UserTypeEnum.ADMIN && (
-          <div>
-            <div
-              className={styles.userCard}
-              onClick={() => navigate(`/config/${user?.id}`)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  navigate(`/config/${user?.id}`);
-                }
-              }}
-            >
-              <div className={styles.userAvatar}>{initials}</div>
-              <div className={styles.userInfo}>
-                <div className={styles.userName}>{displayName}</div>
-                <div className={styles.userEmail}>{displayEmail}</div>
-              </div>
+        <div>
+          <div
+            className={styles.userCard}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                navigate(`/config/${user?.id}`);
+              }
+            }}
+          >
+            <div className={styles.userAvatar}>{initials}</div>
+            <div className={styles.userInfo}>
+              <div className={styles.userName}>{displayName}</div>
+              <div className={styles.userEmail}>{displayEmail}</div>
             </div>
-
-            <NavLink
-              to={"/config"}
-              className={({ isActive }) =>
-                isActive ? styles.active : styles.linkButton
-              }
-              style={{ gap: 12 }}
-            >
-              <FiSettings className={styles.icon} color="#636E72" size={20} />
-              <span>Configurações</span>
-            </NavLink>
-
-            <NavLink
-              to={"/collaborators"}
-              className={({ isActive }) =>
-                isActive ? styles.active : styles.linkButton
-              }
-              style={{ gap: 12 }}
-            >
-              <FiUsers className={styles.icon} color="#636E72" size={20} />
-              <span>Colaboradores</span>
-            </NavLink>
           </div>
-        )}
+
+          {user?.userType === UserTypeEnum.ADMIN && (
+            <div>
+              <NavLink
+                to={"/config"}
+                className={({ isActive }) =>
+                  isActive ? styles.active : styles.linkButton
+                }
+                style={{ gap: 12 }}
+              >
+                <FiSettings className={styles.icon} color="#636E72" size={20} />
+                <span>Configurações</span>
+              </NavLink>
+
+              <NavLink
+                to={"/collaborators"}
+                className={({ isActive }) =>
+                  isActive ? styles.active : styles.linkButton
+                }
+                style={{ gap: 12 }}
+              >
+                <FiUsers className={styles.icon} color="#636E72" size={20} />
+                <span>Colaboradores</span>
+              </NavLink>
+            </div>
+          )}
+        </div>
         <NavLink
           onClick={() => handleLogout()}
           to={""}

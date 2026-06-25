@@ -15,17 +15,16 @@ import {
   FiAward,
   FiBox,
   FiDollarSign,
-  FiSearch,
   FiShoppingCart,
-  FiUsers,
 } from "react-icons/fi";
-import { CustomSelect } from "../../components/CustomSelect/CustomSelect";
 import { useTheme } from "../../contexts/useTheme";
 import StatCard from "../../components/StatCard/StatCard";
 import { ProductService } from "../../service/Product.service";
 import { StockMovementService } from "../../service/Stock-movement.service";
 import type { StockMovementResponseDto } from "../../dtos/response/stock-movement-response.dto";
+import type { StockOperationResponseDto } from "../../dtos/response/stock-operation-response.dto";
 import { getLowStockEntries } from "../../utils/productStock";
+import { StockOperationsTable } from "../../components/StockOperationsTable/StockOperationsTable";
 
 type MetricCard = {
   label: string;
@@ -204,10 +203,9 @@ export function Dashboard() {
   const [recentMovements, setRecentMovements] = useState<
     StockMovementResponseDto[]
   >([]);
-  const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [pageSize, setPageSize] = useState(10);
-  const [page, setPage] = useState(1);
+  const [recentOperations, setRecentOperations] = useState<
+    StockOperationResponseDto[]
+  >([]);
   const periodRange = useMemo(() => getPeriodRange(period), [period]);
   const periodMovements = useMemo(() => {
     return recentMovements.filter((m) => {
@@ -344,53 +342,21 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
-    StockMovementService.findAll()
+    StockMovementService.findAllOperations()
       .then((data) => {
         const sorted = [...data].sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         );
-        setRecentMovements(sorted);
+        setRecentOperations(sorted);
+        setRecentMovements(
+          sorted.flatMap((operation) => operation.movements ?? []),
+        );
       })
       .catch((error) => {
         console.error(error);
       });
   }, []);
-
-  const filteredMovements = useMemo(() => {
-    let list = recentMovements;
-    if (typeFilter !== "all") {
-      list = list.filter((m) => m.type === typeFilter);
-    }
-    const trimmed = query.trim().toLowerCase();
-    if (trimmed) {
-      list = list.filter(
-        (m) =>
-          (m.responsibleName || "").toLowerCase().includes(trimmed) ||
-          (m.productName || m.variation?.name || "")
-            .toLowerCase()
-            .includes(trimmed) ||
-          m.id.toLowerCase().includes(trimmed),
-      );
-    }
-    return list;
-  }, [recentMovements, query, typeFilter]);
-
-  const totalMovements = filteredMovements.length;
-  const maxPageMovements = Math.max(1, Math.ceil(totalMovements / pageSize));
-  const currentPage = Math.min(page, maxPageMovements);
-  const paginatedMovements = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredMovements.slice(start, start + pageSize);
-  }, [filteredMovements, currentPage, pageSize]);
-
-  const movementPages = useMemo(() => {
-    const pages: number[] = [];
-    const start = Math.max(1, currentPage - 2);
-    const end = Math.min(maxPageMovements, currentPage + 2);
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
-  }, [currentPage, maxPageMovements]);
 
   return (
     <div className={styles.page}>
@@ -589,188 +555,7 @@ export function Dashboard() {
         <div className={styles.tableHeader}>
           <div className={styles.tableTitle}>Movimentações Recentes</div>
         </div>
-
-        <div className={styles.filters}>
-          <div className={styles.searchGroup}>
-            <div className={styles.search}>
-              <FiSearch className={styles.searchIcon} />
-              <input
-                className={styles.searchInput}
-                type="text"
-                placeholder="Buscar por responsável, produto ou ID..."
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-            <CustomSelect
-              options={[5, 10, 20, 50].map((n) => ({
-                value: String(n),
-                label: String(n),
-              }))}
-              value={String(pageSize)}
-              onChange={(v: string) => {
-                setPageSize(Number(v));
-                setPage(1);
-              }}
-            />
-          </div>
-          <div className={styles.filterActions}>
-            <CustomSelect
-              options={[
-                { value: "all", label: "Todos" },
-                { value: "OUT", label: "Saída" },
-                { value: "IN", label: "Entrada" },
-              ]}
-              value={typeFilter}
-              onChange={(v: string) => {
-                setTypeFilter(v);
-                setPage(1);
-              }}
-            />
-          </div>
-        </div>
-
-        <div className={styles.table}>
-          <div className={`${styles.row} ${styles.thead}`}>
-            <div>PRODUTO</div>
-            <div>DATA/HORA</div>
-            <div>RESPONSÁVEL</div>
-            <div>VARIAÇÃO</div>
-            <div className={styles.qtdValorCell}>
-              <span>QTD</span>
-              <span>VALOR</span>
-              <span>FORMA DE PAGAMENTO</span>
-            </div>
-            <div>MOTIVO</div>
-            <div>TIPO</div>
-          </div>
-
-          {paginatedMovements.length === 0 ? (
-            <div className={styles.emptyState}>
-              <FiUsers className={styles.emptyIcon} />
-              <div
-                style={{
-                  fontWeight: 600,
-                  fontSize: 18,
-                  marginBottom: 4,
-                  color: "var(--text-secondary)",
-                }}
-              >
-                Nenhuma movimentação encontrada
-              </div>
-              <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
-                Tente ajustar os filtros ou realize uma nova movimentação.
-              </div>
-            </div>
-          ) : (
-            paginatedMovements.map((r) => {
-              const dt = new Date(r.createdAt);
-              const date = dt.toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "short",
-              });
-              const time = dt.toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-              const initials = (r.responsibleName || "?")
-                .split(" ")
-                .slice(0, 2)
-                .map((p: string) => p[0]?.toUpperCase() ?? "")
-                .join("");
-              return (
-                <div key={r.id} className={styles.row}>
-                  <div className={styles.idCell}>
-                    {r.productName || r.variation?.name || "-"}
-                  </div>
-                  <div className={styles.dateCell}>
-                    <div>{date}</div>
-                    <div className={styles.muted}>{time}</div>
-                  </div>
-                  <div className={styles.clientCell}>
-                    <div className={styles.avatar}>{initials}</div>
-                    <div className={styles.clientName}>
-                      {r.responsibleName || "-"}
-                    </div>
-                  </div>
-                  <div className={styles.productsCell}>
-                    {r.variation?.color && (
-                      <span
-                        className={styles.colorDot}
-                        style={{ backgroundColor: r.variation.color }}
-                      />
-                    )}
-                    {r.variation?.size || "-"}
-                  </div>
-                  <div className={styles.qtdValorCell}>
-                    <span className={styles.totalCell}>{r.quantity}x</span>
-                    <span className={styles.valueCell}>
-                      R$
-                      {r.price.length > 5
-                        ? r.price.slice(0, 4) + "..."
-                        : r.price || "-"}
-                    </span>
-                    <span className={styles.paymentCell}>
-                      {r.paymentMethod || "-"}
-                    </span>
-                  </div>
-                  <div className={styles.reasonCell}>{r.reason || "-"}</div>
-                  <div>
-                    <span
-                      className={
-                        r.type === "OUT" ? styles.statusOk : styles.statusBad
-                      }
-                    >
-                      {r.type === "OUT" ? "SAÍDA" : "ENTRADA"}
-                    </span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        <div className={styles.bottom}>
-          <div className={styles.counter}>
-            Mostrando {paginatedMovements.length} de {totalMovements}{" "}
-            movimentações
-          </div>
-          <div className={styles.pagination}>
-            <button
-              className={`${styles.pageBtn} ${currentPage === 1 ? styles.pageBtnDisabled : ""}`}
-              type="button"
-              onClick={() => setPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              aria-label="Página anterior"
-            >
-              ‹
-            </button>
-            {movementPages.map((p) => (
-              <button
-                key={p}
-                className={`${styles.pageBtn} ${p === currentPage ? styles.pageBtnActive : ""}`}
-                type="button"
-                onClick={() => setPage(p)}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              className={`${styles.pageBtn} ${currentPage === maxPageMovements ? styles.pageBtnDisabled : ""}`}
-              type="button"
-              onClick={() =>
-                setPage(Math.min(maxPageMovements, currentPage + 1))
-              }
-              disabled={currentPage === maxPageMovements}
-              aria-label="Próxima página"
-            >
-              ›
-            </button>
-          </div>
-        </div>
+        <StockOperationsTable operations={recentOperations} />
       </div>
     </div>
   );

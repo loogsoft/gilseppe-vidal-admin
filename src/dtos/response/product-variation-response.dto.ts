@@ -2,6 +2,7 @@ import type { ImageResponse } from "./image-response.dto";
 
 export interface ProductVariationResponseDto {
   id: string;
+  barCode?: string;
   name: string;
   price?: number;
   stock: number;

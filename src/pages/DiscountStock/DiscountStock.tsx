@@ -6,7 +6,6 @@ import {
   FiPackage,
   FiSearch,
   FiShoppingBag,
-  FiUser,
 } from "react-icons/fi";
 import StatCard from "../../components/StatCard/StatCard";
 import { CustomSelect } from "../../components/CustomSelect/CustomSelect";
@@ -15,48 +14,61 @@ import { SkeletonCard } from "../../components/SkeletonCard/SkeletonCard";
 import { ProductService } from "../../service/Product.service";
 import type { ProductResponse } from "../../dtos/response/product-response.dto";
 import type { StockMovementResponseDto } from "../../dtos/response/stock-movement-response.dto";
+import type { StockOperationResponseDto } from "../../dtos/response/stock-operation-response.dto";
 import { ProductStatusEnum } from "../../dtos/enums/product-status.enum";
 import {
   ReturnStockModal,
   type StockHistoryItem,
 } from "../../components/ReturnaStockModal/ReturnStockModal";
 import { StockMovementService } from "../../service/Stock-movement.service";
-import { DiscountStockModal } from "../../components/DiscountStockModal/DiscountStockModal";
 import { DiscountStockFilterModal } from "../../components/FilterModal/DiscountStockFilterModal";
 import {
+  getProductStockEntries,
   getProductStockLevel,
   getProductTotalStock,
   productHasAvailableStock,
+  type ProductStockEntry,
 } from "../../utils/productStock";
 import { Barcode } from "lucide-react";
 import { toast } from "react-toastify";
 import {
   StockScanCart,
   type StockScanCartItem,
+  type StockScanOperationData,
 } from "../../components/StockScanCart/StockScanCart";
+import { useAuth } from "../../contexts/useAuth";
+import { useMessageContext } from "../../contexts/useMessageContext";
+import { StockOperationsTable } from "../../components/StockOperationsTable/StockOperationsTable";
 type StockLevel = "all" | "ok" | "low" | "critical";
 type SortOption = "alpha" | "priceAsc" | "priceDesc" | "stockAsc" | "stockDesc";
+type StockSearchResult =
+  | { product: ProductResponse; entry: ProductStockEntry }
+  | "requires-variation"
+  | null;
 
 const getStockLevel = (p: ProductResponse): "ok" | "low" | "critical" => {
   return getProductStockLevel(p);
 };
 
 export function DiscountStock() {
+  const { user } = useAuth();
+  const { checkStockAndNotify } = useMessageContext();
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [darBaixaProduct, setDarBaixaProduct] =
-    useState<ProductResponse | null>(null);
   const [voltarEstoqueItem, setVoltarEstoqueItem] =
     useState<StockHistoryItem | null>(null);
   const [stockHistory, setStockHistory] =
     useState<StockMovementResponseDto[]>([]);
+  const [stockOperations, setStockOperations] = useState<
+    StockOperationResponseDto[]
+  >([]);
   const [search, setSearch] = useState("");
   const stockSearchInputRef = useRef<HTMLInputElement | null>(null);
   const [scanCartItems, setScanCartItems] = useState<StockScanCartItem[]>([]);
   const [isScanCartOpen, setIsScanCartOpen] = useState(false);
+  const [scanCartLoading, setScanCartLoading] = useState(false);
   const [category, setCategory] = useState("all");
   const [view, setView] = useState<"stock" | "history">("stock");
-  const [historyTypeFilter, setHistoryTypeFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -127,8 +139,9 @@ export function DiscountStock() {
     const fetchHistory = async () => {
       try {
         setLoading(true);
-        const data = await StockMovementService.findAll();
-        setStockHistory(data);
+        const data = await StockMovementService.findAllOperations();
+        setStockOperations(data);
+        setStockHistory(data.flatMap((operation) => operation.movements ?? []));
       } catch (err) {
         console.error(err);
       } finally {
@@ -136,7 +149,7 @@ export function DiscountStock() {
       }
     };
     fetchHistory();
-  }, []);
+  }, [activedFindAll]);
 
   const LISTPAG: { value: number }[] = useMemo(
     () => [{ value: 6 }, { value: 12 }, { value: 24 }, { value: 48 }],
@@ -204,32 +217,11 @@ export function DiscountStock() {
     return sorted;
   }, [search, category, filters, products]);
 
-  const filteredHistory = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    let filtered = stockHistory;
-
-    if (historyTypeFilter !== "all") {
-      filtered = filtered.filter((item) => item.type === historyTypeFilter);
-    }
-
-    if (!term) return filtered;
-
-    return filtered.filter((item) => {
-      const productName = item.productName || item.variation?.name || "";
-      const responsible = item.responsibleName || "";
-      const movementId = item.id || "";
-      return `${productName} ${item.reason} ${responsible} ${movementId}`
-        .toLowerCase()
-        .includes(term);
-    });
-  }, [historyTypeFilter, search, stockHistory]);
-
   useEffect(() => {
     setPage(1);
-  }, [view, search, category, filters, historyTypeFilter]);
+  }, [view, search, category, filters]);
 
-  const totalResults =
-    view === "stock" ? filteredItems.length : filteredHistory.length;
+  const totalResults = filteredItems.length;
   const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedStockItems = useMemo(() => {
@@ -237,40 +229,110 @@ export function DiscountStock() {
     return filteredItems.slice(start, start + pageSize);
   }, [filteredItems, currentPage, pageSize]);
 
-  const pagedHistoryItems = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredHistory.slice(start, start + pageSize);
-  }, [filteredHistory, currentPage, pageSize]);
-
   const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
 
-  const addProductToScanCart = (product: ProductResponse) => {
-    const availableStock = getProductTotalStock(product);
+  const getStockItemLabel = (entry: ProductStockEntry) => {
+    if (entry.kind === "product") return "Produto principal";
+
+    return [entry.variation?.color, entry.variation?.size]
+      .filter(Boolean)
+      .join(" • ");
+  };
+
+  const createScanCartItem = (
+    product: ProductResponse,
+    entry: ProductStockEntry,
+  ): StockScanCartItem => ({
+    product,
+    stockItemId: entry.id,
+    stockItemType: entry.kind,
+    stockItemLabel: getStockItemLabel(entry) || entry.variation?.name || "-",
+    maxStock: entry.stock,
+    unitPrice: Number(entry.variation?.price ?? product.price ?? 0),
+    imageUrl: entry.variation?.imageUrl || product.images?.[0]?.url,
+    barCode:
+      entry.kind === "variation" ? entry.variation?.barCode : product.barCode,
+    quantity: 1,
+  });
+
+  const addStockEntryToScanCart = (
+    product: ProductResponse,
+    entry: ProductStockEntry,
+  ) => {
+    const itemToAdd = createScanCartItem(product, entry);
 
     setScanCartItems((currentItems) => {
       const existingItem = currentItems.find(
-        (item) => item.product.id === product.id,
+        (item) => item.stockItemId === itemToAdd.stockItemId,
       );
 
-      if (existingItem && existingItem.quantity >= availableStock) {
+      if (existingItem && existingItem.quantity >= itemToAdd.maxStock) {
         toast.warning("A quantidade selecionada atingiu o estoque disponível.");
         return currentItems;
       }
 
       if (existingItem) {
         return currentItems.map((item) =>
-          item.product.id === product.id
+          item.stockItemId === itemToAdd.stockItemId
             ? { ...item, quantity: item.quantity + 1 }
             : item,
         );
       }
 
-      return [...currentItems, { product, quantity: 1 }];
+      return [...currentItems, itemToAdd];
     });
 
     setIsScanCartOpen(true);
     setSearch("");
     requestAnimationFrame(() => stockSearchInputRef.current?.focus());
+  };
+
+  const handleProductCardDiscount = (product: ProductResponse) => {
+    const availableEntries = getProductStockEntries(product).filter(
+      (entry) => entry.stock > 0,
+    );
+
+    if (!availableEntries.length) {
+      toast.warning("Produto sem estoque disponível para baixa.");
+      return;
+    }
+
+    addStockEntryToScanCart(product, availableEntries[0]);
+  };
+
+  const resolveStockEntryFromSearch = (term: string): StockSearchResult => {
+    for (const product of products) {
+      if (!productHasAvailableStock(product)) continue;
+
+      const entries = getProductStockEntries(product).filter(
+        (entry) => entry.stock > 0,
+      );
+
+      const variationMatch = entries.find(
+        (entry) =>
+          entry.kind === "variation" &&
+          (entry.id.toLowerCase() === term ||
+            entry.variation?.barCode?.trim().toLowerCase() === term),
+      );
+
+      if (variationMatch) {
+        return { product, entry: variationMatch };
+      }
+
+      const productMatches =
+        product.id.toLowerCase() === term ||
+        product.barCode?.trim().toLowerCase() === term;
+
+      if (!productMatches) continue;
+
+      if (entries.length === 1) {
+        return { product, entry: entries[0] };
+      }
+
+      return "requires-variation";
+    }
+
+    return null;
   };
 
   const handleScanSearchKeyDown = (
@@ -282,32 +344,95 @@ export function DiscountStock() {
     const term = search.trim().toLowerCase();
     if (!term) return;
 
-    const exactProduct = products.find(
-      (product) =>
-        productHasAvailableStock(product) &&
-        (product.barCode?.trim().toLowerCase() === term ||
-          product.id.toLowerCase() === term),
-    );
-    const product = exactProduct ?? (filteredItems.length === 1 ? filteredItems[0] : null);
+    const resolved = resolveStockEntryFromSearch(term);
+    const fallbackResolved =
+      resolved === null && filteredItems.length === 1
+        ? (() => {
+            const product = filteredItems[0];
+            const entries = getProductStockEntries(product).filter(
+              (entry) => entry.stock > 0,
+            );
 
-    if (!product) {
+            if (entries.length === 1) {
+              return { product, entry: entries[0] };
+            }
+
+            return "requires-variation" as const;
+          })()
+        : resolved;
+
+    if (fallbackResolved === "requires-variation") {
+      toast.warning(
+        "Esse produto possui variações. Leia o código da variação ou use a baixa manual.",
+      );
+      return;
+    }
+
+    if (!fallbackResolved) {
       toast.error("Nenhum produto encontrado para este código.");
       return;
     }
 
-    addProductToScanCart(product);
+    addStockEntryToScanCart(fallbackResolved.product, fallbackResolved.entry);
   };
 
-  const changeScanCartQuantity = (productId: string, quantity: number) => {
+  const changeScanCartQuantity = (stockItemId: string, quantity: number) => {
     setScanCartItems((currentItems) =>
       currentItems
         .map((item) => {
-          if (item.product.id !== productId) return item;
-          const maxStock = getProductTotalStock(item.product);
-          return { ...item, quantity: Math.min(quantity, maxStock) };
+          if (item.stockItemId !== stockItemId) return item;
+          return { ...item, quantity: Math.min(quantity, item.maxStock) };
         })
         .filter((item) => item.quantity > 0),
     );
+  };
+
+  const handleConfirmScanCart = async (data: StockScanOperationData) => {
+    if (scanCartItems.length === 0 || scanCartLoading) return;
+
+    const operatorEmail = user?.email ?? "";
+    if (!operatorEmail) {
+      toast.error("Usuário sem e-mail para registrar a operação.");
+      return;
+    }
+
+    try {
+      setScanCartLoading(true);
+      await StockMovementService.create({
+        creditCustomerId:
+          data.paymentMethod === "Crediario"
+            ? data.creditCustomerId
+            : undefined,
+        installment:
+          data.paymentMethod === "Crediario" ? data.installment : undefined,
+        items: scanCartItems.map((item) => ({
+          productId:
+            item.stockItemType === "product" ? item.stockItemId : undefined,
+          variationId:
+            item.stockItemType === "variation" ? item.stockItemId : undefined,
+          quantity: item.quantity,
+          productName: item.product.name,
+          price: String(Number((item.unitPrice * item.quantity).toFixed(2))),
+        })),
+        type: "OUT",
+        reason: data.reason,
+        paymentMethod: data.paymentMethod,
+        responsibleName: data.responsibleName,
+        responsibleEmail: operatorEmail,
+        observation: data.observation,
+      });
+
+      await checkStockAndNotify();
+      setScanCartItems([]);
+      setIsScanCartOpen(false);
+      alternValue();
+      toast.success("Baixa em lote registrada com sucesso.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao registrar baixa em lote. Tente novamente.");
+    } finally {
+      setScanCartLoading(false);
+    }
   };
 
   // Calcula o faturamento total
@@ -522,7 +647,7 @@ export function DiscountStock() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDarBaixaProduct(item);
+                        handleProductCardDiscount(item);
                       }}
                     >
                       Dar baixa
@@ -576,197 +701,14 @@ export function DiscountStock() {
         </section>
       ) : (
         <section className={styles.tablePanel}>
-          <div className={styles.filters}>
-            <div className={styles.searchGroup}>
-              <div className={styles.search}>
-                <FiSearch className={styles.searchIcon} />
-                <input
-                  className={styles.searchInput}
-                  type="text"
-                  placeholder="Buscar por responsável, produto ou ID..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </div>
-              <CustomSelect
-                options={LISTPAG.map((c) => ({
-                  value: String(c.value),
-                  label: String(c.value),
-                }))}
-                value={String(pageSize)}
-                onChange={(v: string) => {
-                  setPageSize(Number(v));
-                  setPage(1);
-                }}
-              />
-            </div>
-            <div className={styles.filterActions}>
-              <CustomSelect
-                options={[
-                  { value: "all", label: "Todos" },
-                  { value: "OUT", label: "Saída" },
-                  { value: "IN", label: "Entrada" },
-                ]}
-                value={historyTypeFilter}
-                onChange={(value) => {
-                  setHistoryTypeFilter(value);
-                  setPage(1);
-                }}
-              />
-            </div>
-          </div>
-          <div className={styles.table}>
-            <div
-              className={`${styles.row} ${styles.thead} ${styles.historyRow}`}
-            >
-              <div>PRODUTO</div>
-              <div>DATA/HORA</div>
-              <div>RESPONSÁVEL</div>
-              <div>VARIAÇÃO</div>
-              <div>QTD</div>
-              <div>VALOR</div>
-              <div>FORMA DE PAGAMENTO</div>
-              <div>MOTIVO</div>
-              <div>TIPO</div>
-            </div>
-
-            {pagedHistoryItems.length === 0 ? (
-              <div className={styles.emptyState}>
-                <FiUser className={styles.emptyIcon} />
-                <div
-                  style={{
-                    fontWeight: 600,
-                    fontSize: 18,
-                    marginBottom: 4,
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  Nenhuma movimentação encontrada
-                </div>
-                <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
-                  Tente ajustar os filtros ou realize uma nova movimentação.
-                </div>
-              </div>
-            ) : (
-              pagedHistoryItems.map((r) => {
-                const dt = new Date(r.createdAt);
-                const date = dt.toLocaleDateString("pt-BR", {
-                  day: "2-digit",
-                  month: "short",
-                });
-                const time = dt.toLocaleTimeString("pt-BR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
-                const initials = (r.responsibleName || "?")
-                  .split(" ")
-                  .slice(0, 2)
-                  .map((p: string) => p[0]?.toUpperCase() ?? "")
-                  .join("");
-                return (
-                  <div
-                    key={r.id}
-                    className={`${styles.row} ${styles.historyRow}`}
-                  >
-                    <div className={styles.idCell}>
-                      {r.productName || r.variation?.name || "-"}
-                    </div>
-                    <div className={styles.dateCell}>
-                      <div>{date}</div>
-                      <div className={styles.muted}>{time}</div>
-                    </div>
-                    <div className={styles.clientCell}>
-                      <div className={styles.avatar}>{initials}</div>
-                      <div className={styles.clientName}>
-                        {r.responsibleName || "-"}
-                      </div>
-                    </div>
-                    <div className={styles.productsCell}>
-                      {r.variation?.color && (
-                        <span
-                          className={styles.colorDot}
-                          style={{ backgroundColor: r.variation.color }}
-                        />
-                      )}
-                      {r.variation?.size || "-"}
-                    </div>
-                    <div className={styles.totalCell}>{r.quantity}x</div>
-                    <div className={styles.valueCell}>
-                      {Number(
-                        r.price || r.variation?.price || 0,
-                      ).toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      })}
-                    </div>
-                    <div className={styles.paymentCell}>
-                      {r.paymentMethod || "-"}
-                    </div>
-                    <div className={styles.reasonCell}>{r.reason || "-"}</div>
-                    <div className={styles.typeCell}>
-                      {r.type === "OUT" ? (
-                        <span className={styles.statusOut}>SAÍDA</span>
-                      ) : (
-                        <span className={styles.statusIn}>ENTRADA</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <div className={styles.tableFooter}>
-            <div className={styles.tableSummary}>
-              Mostrando {pagedHistoryItems.length} de {filteredHistory.length}{" "}
-              movimentações
-            </div>
-            <div className={styles.pagination}>
-              <button
-                className={`${styles.pageBtn} ${currentPage === 1 ? styles.pageBtnDisabled : ""}`}
-                type="button"
-                onClick={() => setPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                aria-label="Página anterior"
-              >
-                ‹
-              </button>
-              {pages.map((p) => (
-                <button
-                  key={p}
-                  className={`${styles.pageBtn} ${p === currentPage ? styles.pageBtnActive : ""}`}
-                  type="button"
-                  onClick={() => setPage(p)}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                className={`${styles.pageBtn} ${currentPage === totalPages ? styles.pageBtnDisabled : ""}`}
-                type="button"
-                onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-                aria-label="Próxima página"
-              >
-                ›
-              </button>
-            </div>
-          </div>
+          <StockOperationsTable
+            operations={stockOperations}
+            pageSizeOptions={LISTPAG.map((item) => item.value)}
+            initialPageSize={6}
+          />
         </section>
       )}
 
-      <DiscountStockModal
-        isOpen={darBaixaProduct !== null}
-        onClose={() => setDarBaixaProduct(null)}
-        product={darBaixaProduct}
-        onClick={() => alternValue()}
-        onConfirm={(data) => {
-          console.log("Baixa confirmada:", data);
-          setDarBaixaProduct(null);
-        }}
-      />
       <ReturnStockModal
         isOpen={voltarEstoqueItem !== null}
         onClose={() => setVoltarEstoqueItem(null)}
@@ -781,11 +723,13 @@ export function DiscountStock() {
         items={scanCartItems}
         onClose={() => setIsScanCartOpen(false)}
         onChangeQuantity={changeScanCartQuantity}
-        onRemove={(productId) =>
+        onRemove={(stockItemId) =>
           setScanCartItems((items) =>
-            items.filter((item) => item.product.id !== productId),
+            items.filter((item) => item.stockItemId !== stockItemId),
           )
         }
+        onConfirm={handleConfirmScanCart}
+        isConfirming={scanCartLoading}
       />
     </div>
   );

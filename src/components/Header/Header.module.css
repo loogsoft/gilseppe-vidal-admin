@@ -83,5 +83,5 @@
 
 .avatar:hover {
   transform: scale(1.05);
-  box-shadow: 0 10px 20px rgba(246, 196, 15, 0.45);
+  box-shadow: none;
 }

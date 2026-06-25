@@ -26,7 +26,7 @@
   --shadow-2: 0 10px 20px rgba(17, 24, 39, 0.08);
   --shadow-strong: 0 14px 28px rgba(17, 24, 39, 0.12);
   --hover-bg: rgba(0, 0, 0, 0.04);
-  --active-bg: rgba(246, 196, 15, 0.18);
+  --active-bg: rgba(0, 123, 255, 0.12);
   --overlay-backdrop: rgba(15, 23, 42, 0.48);
   --control-hover-border: #111111;
   --status-danger: #dc2626;
@@ -59,8 +59,8 @@
   --border-default: #2a2a2e;
   --border-light: #202024;
   --border-strong: #3f3f46;
-  --highlight-primary: #f6c40f;
-  --highlight-secondary: #c99700;
+  --highlight-primary: #007BFF;
+  --highlight-secondary: #a8d2ff5f;
   --status-success: #22c55e;
   --status-success-bg: rgba(34, 197, 94, 0.16);
   --status-warning: #f59e0b;
@@ -71,7 +71,7 @@
   --shadow-2: 0 10px 20px rgba(0, 0, 0, 0.45);
   --shadow-strong: 0 14px 28px rgba(0, 0, 0, 0.55);
   --hover-bg: rgba(255, 255, 255, 0.06);
-  --active-bg: rgba(246, 196, 15, 0.2);
+  --active-bg: rgba(0, 123, 255, 0.18);
   --overlay-backdrop: rgba(0, 0, 0, 0.72);
   --control-hover-border: #d4d4d8;
   --status-danger: #f87171;

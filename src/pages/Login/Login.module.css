@@ -64,17 +64,46 @@
   align-items: center;
 }
 
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 74px;
+  margin-bottom: 28px;
+}
+
 .logoImg {
-  width: 70%;
+  width: 74px;
+  max-width: none;
+  flex: 0 0 auto;
   object-fit: contain;
-  border-radius: 999px;
-  margin-bottom: -50px;
+  filter: drop-shadow(0 14px 24px rgba(19, 125, 255, 0.16));
+}
+
+.brandName {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #0f172a;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.brandNameAccent {
+  color: var(--highlight-primary-semp);
+}
+
+:global([data-theme="dark"]) .brandName {
+  color: var(--text-primary);
 }
 
 .header {
   width: 100%;
   text-align: center;
-  margin-bottom: 36px;
+  margin-bottom: 34px;
 }
 
 .h1 {
@@ -82,7 +111,7 @@
   font-weight: 700;
   color: #111827;
   margin-bottom: 6px;
-  letter-spacing: -0.3px;
+  letter-spacing: 0;
 }
 
 :global([data-theme="dark"]) .h1 {
@@ -853,6 +882,19 @@
   .card {
     padding: 36px 24px 32px;
     border-radius: 16px;
+  }
+
+  .brandMark {
+    gap: 10px;
+    min-height: 64px;
+  }
+
+  .logoImg {
+    width: 62px;
+  }
+
+  .brandName {
+    font-size: 24px;
   }
 
   .logoPreviewCircle {

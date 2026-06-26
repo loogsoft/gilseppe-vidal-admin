@@ -8,8 +8,7 @@ import { FiEye, FiEyeOff, FiArrowRight } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/useAuth";
 import { UserService } from "../../service/User.service";
-import logoLight from "../../assets/logo-preta.png";
-import logoDark from "../../assets/logo-preta.png";
+import logo from "../../assets/logo-preta.png";
 import { CircularProgress } from "@mui/material";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -351,9 +350,7 @@ export default function Login() {
           ) {
             showErrorToast();
           } else {
-            setCodeError(
-              "Não foi possível validar o código. Tente novamente.",
-            );
+            setCodeError("Não foi possível validar o código. Tente novamente.");
           }
         } finally {
           setTimeout(() => {
@@ -485,11 +482,13 @@ export default function Login() {
           </button>
         )}
         <div className={styles.formWrap}>
-          <img
-            src={theme === "dark" ? logoDark : logoLight}
-            alt="Logo"
-            className={styles.logoImg}
-          />
+          <div className={styles.brandMark} aria-label="Loog System">
+            <img src={logo} alt="" className={styles.logoImg} />
+            <span className={styles.brandName}>
+              <span>Loog</span>
+              <span className={styles.brandNameAccent}>System</span>
+            </span>
+          </div>
 
           <div className={styles.header}>
             <div className={styles.h1}>

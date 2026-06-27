@@ -23,6 +23,108 @@
   gap: 18px;
 }
 
+.subscriptionCard {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.subscriptionCardActive {
+  border-color: rgba(22, 163, 74, 0.22);
+  background:
+    linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(255, 255, 255, 0) 46%),
+    var(--surface);
+}
+
+.subscriptionCardDisabled {
+  border-color: rgba(220, 38, 38, 0.22);
+  background:
+    linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(255, 255, 255, 0) 46%),
+    var(--surface);
+}
+
+.subscriptionCardLoading {
+  border-color: var(--border-default);
+  background: var(--surface);
+}
+
+.subscriptionItem {
+  display: grid;
+  grid-template-columns: 30px max-content;
+  align-items: center;
+  gap: 8px;
+  min-width: 118px;
+}
+
+.subscriptionIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--status-success);
+}
+
+.subscriptionCardDisabled .subscriptionIcon {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--status-danger);
+}
+
+.subscriptionCardLoading .subscriptionIcon {
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+
+.subscriptionText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.subscriptionLabel {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.subscriptionValue {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.subscriptionCardActive .subscriptionStatus .subscriptionValue {
+  color: var(--status-success);
+}
+
+.subscriptionCardDisabled .subscriptionStatus .subscriptionValue {
+  color: var(--status-danger);
+}
+
+.subscriptionCardLoading .subscriptionStatus .subscriptionValue {
+  color: var(--text-secondary);
+}
+
+.subscriptionDivider {
+  width: 1px;
+  height: 30px;
+  background: var(--border-default);
+}
+
 .iconButton {
   width: 40px;
   height: 40px;
@@ -84,4 +186,46 @@
 .avatar:hover {
   transform: scale(1.05);
   box-shadow: none;
+}
+
+@media (max-width: 860px) {
+  .header {
+    padding: 0 16px;
+    gap: 14px;
+  }
+
+  .title {
+    min-width: 0;
+  }
+
+  .right {
+    gap: 10px;
+  }
+
+  .subscriptionCard {
+    min-height: 44px;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 14px;
+  }
+
+  .subscriptionItem {
+    grid-template-columns: 28px max-content;
+    gap: 7px;
+    min-width: 106px;
+  }
+
+  .subscriptionIcon {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+  }
+
+  .subscriptionValue {
+    font-size: 13px;
+  }
+
+  .subscriptionDivider {
+    height: 28px;
+  }
 }

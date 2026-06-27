@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/useAuth";
 import { UserService } from "../../service/User.service";
 import logo from "../../assets/logo-preta.png";
+import pixQrCode from "../../assets/qrcode-pix.svg";
 import { CircularProgress } from "@mui/material";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -17,17 +18,24 @@ import { useTheme } from "../../contexts/useTheme";
 import DashboardPreview from "../../components/DashboardPreview/DashboardPreview";
 import {
   AlertCircle,
+  Check,
   ChevronLeft,
+  Copy,
   Headset,
+  Lock,
   MessageCircle,
   Moon,
+  QrCode,
   Sun,
+  Timer,
   WifiOff,
+  X,
 } from "lucide-react";
 import { IoStorefront } from "react-icons/io5";
 import { CompanyService } from "../../service/Company.service";
 import { UserTypeEnum } from "../../dtos/enums/user-type.enum";
 import type { CompanyResponseDto } from "../../dtos/response/company-response.dto";
+import { SubscriptionStatusEnum } from "../../dtos/enums/subscription-status.num";
 
 const SUPPORT_PHONE = "64999663524";
 const SUPPORT_MESSAGE =
@@ -35,12 +43,172 @@ const SUPPORT_MESSAGE =
 const SUPPORT_URL = `https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(
   SUPPORT_MESSAGE,
 )}`;
+const PIX_COPY_PASTE =
+  "00020126600014br.gov.bcb.pix0111703684151630223Mensalidade_Logo_System5204000053039865406100.005802BR5924ANDERSON_MENDES_DE_SOUZA6013BURITI_ALEGRE62290525veS4Azsurr18pvaTPE8o7YWtv63047CFE";
+const PAYMENT_RECEIVER_NAME = "Anderson Mendes de Souza";
+const PAYMENT_WAIT_SECONDS = 5 * 60;
+const PAYMENT_WAITING_STORAGE_KEY = "waiting";
+const PAYMENT_WAIT_UNTIL_STORAGE_KEY = "waitingUntil";
+
+type PaymentBlockModal = {
+  companyId: string;
+  dueDate: string;
+  pixCode: string;
+  whatsappUrl: string;
+};
+
+type PaymentModalStep = "notice" | "pix" | "waiting";
+
+function formatWaitTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
+async function copyTextToClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
+function getApiBody(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return null;
+  }
+
+  const responseData = error.response?.data;
+
+  if (!responseData || typeof responseData !== "object") {
+    return null;
+  }
+
+  const message = (responseData as { message?: unknown }).message;
+
+  if (message && typeof message === "object" && !Array.isArray(message)) {
+    return message as Record<string, unknown>;
+  }
+
+  return responseData as Record<string, unknown>;
+}
+
+function getApiMessage(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return "";
+  }
+
+  const responseData = error.response?.data;
+
+  if (typeof responseData === "string") {
+    return responseData;
+  }
+
+  const responseBody = getApiBody(error);
+
+  if (responseBody) {
+    const message = responseBody.message;
+
+    if (typeof message === "string") {
+      return message;
+    }
+
+    if (Array.isArray(message)) {
+      return message.filter(Boolean).join(" ");
+    }
+  }
+
+  return "";
+}
+
+function getPaymentBlockPayload(error: unknown) {
+  const responseBody = getApiBody(error);
+
+  if (!responseBody) {
+    return {
+      companyId: "",
+      paymentDueDay: undefined,
+    };
+  }
+
+  const companyId = responseBody.companyId;
+
+  return {
+    companyId:
+      typeof companyId === "string" || typeof companyId === "number"
+        ? String(companyId)
+        : "",
+    paymentDueDay: responseBody.paymentDueDay,
+  };
+}
+
+function isPaymentBlockedMessage(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes("pagamento") || normalized.includes("bloqueado");
+}
+
+function formatPaymentDueDate(dueDateValue: unknown, fallbackMessage = "") {
+  const dueDateText =
+    typeof dueDateValue === "string"
+      ? dueDateValue
+      : dueDateValue instanceof Date
+        ? dueDateValue.toISOString()
+        : fallbackMessage.match(/vencimento:\s*(.+)$/i)?.[1]?.trim();
+
+  if (!dueDateText) {
+    return "Vencimento não informado";
+  }
+
+  const dueDate = new Date(dueDateText);
+
+  if (Number.isNaN(dueDate.getTime())) {
+    return dueDateText;
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(dueDate);
+}
+
+function createPaymentBlockModal(
+  message: string,
+  payload: ReturnType<typeof getPaymentBlockPayload>,
+): PaymentBlockModal {
+  const whatsappMessage =
+    `Olá! Meu acesso ao Loog System foi bloqueado por pagamento pendente. ` +
+    `Pix copia e cola para referência: ${PIX_COPY_PASTE}. ` +
+    `Nome informado: ${PAYMENT_RECEIVER_NAME}. Vou enviar o comprovante por aqui.`;
+
+  return {
+    companyId: payload.companyId,
+    dueDate: formatPaymentDueDate(payload.paymentDueDay, message),
+    pixCode: PIX_COPY_PASTE,
+    whatsappUrl: `https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(
+      whatsappMessage,
+    )}`,
+  };
+}
 
 export default function Login() {
   const { theme, toggleTheme } = useTheme();
   const supportUrl = SUPPORT_URL;
-  const [email, setEmail] = useState("admin.giuseppevidal@gmail.com");
-  const [password, setPassword] = useState("giuseppe.vidal@");
+  const [email, setEmail] = useState("admin.loogsystem@gmail.com");
+  const [password, setPassword] = useState("Loogsystem@");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [showPass, setShowPass] = useState(false);
@@ -56,6 +224,17 @@ export default function Login() {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [paymentBlock, setPaymentBlock] = useState<PaymentBlockModal | null>(
+    null,
+  );
+  const [modalPayment, setModalPayment] = useState(false);
+  const [paymentModalStep, setPaymentModalStep] =
+    useState<PaymentModalStep>("notice");
+  const [pixCopied, setPixCopied] = useState(false);
+  const [paymentReported, setPaymentReported] = useState(false);
+  const [paymentWaitSeconds, setPaymentWaitSeconds] =
+    useState(PAYMENT_WAIT_SECONDS);
+  const [paymentWaitUntil, setPaymentWaitUntil] = useState<number | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const codeRefs = useRef<Array<HTMLInputElement | null>>([]);
   const navigate = useNavigate();
@@ -192,6 +371,175 @@ export default function Login() {
     return () => window.clearInterval(timer);
   }, [resendCooldown]);
 
+  useEffect(() => {
+    const isWaiting =
+      localStorage.getItem(PAYMENT_WAITING_STORAGE_KEY) === "true";
+    const storedWaitUntil = Number(
+      localStorage.getItem(PAYMENT_WAIT_UNTIL_STORAGE_KEY),
+    );
+
+    if (!isWaiting) {
+      localStorage.removeItem(PAYMENT_WAIT_UNTIL_STORAGE_KEY);
+      return;
+    }
+
+    if (
+      Number.isFinite(storedWaitUntil) &&
+      storedWaitUntil > 0 &&
+      storedWaitUntil <= Date.now()
+    ) {
+      localStorage.removeItem(PAYMENT_WAITING_STORAGE_KEY);
+      localStorage.removeItem(PAYMENT_WAIT_UNTIL_STORAGE_KEY);
+      return;
+    }
+
+    const waitUntil =
+      Number.isFinite(storedWaitUntil) && storedWaitUntil > Date.now()
+        ? storedWaitUntil
+        : Date.now() + PAYMENT_WAIT_SECONDS * 1000;
+
+    localStorage.setItem(PAYMENT_WAITING_STORAGE_KEY, "true");
+    localStorage.setItem(PAYMENT_WAIT_UNTIL_STORAGE_KEY, String(waitUntil));
+    setModalPayment(true);
+    setPaymentReported(true);
+    setPaymentModalStep("waiting");
+    setPaymentWaitUntil(waitUntil);
+    setPaymentWaitSeconds(
+      Math.max(0, Math.ceil((waitUntil - Date.now()) / 1000)),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (paymentModalStep !== "waiting" || !modalPayment || !paymentWaitUntil) {
+      return;
+    }
+
+    let hasFinished = false;
+
+    const finishPaymentWait = async () => {
+      if (hasFinished) {
+        return;
+      }
+
+      hasFinished = true;
+      localStorage.removeItem(PAYMENT_WAITING_STORAGE_KEY);
+      localStorage.removeItem(PAYMENT_WAIT_UNTIL_STORAGE_KEY);
+      setModalPayment(false);
+      setPaymentBlock(null);
+      setPaymentModalStep("notice");
+      setPaymentReported(false);
+      setPaymentWaitUntil(null);
+      setPaymentWaitSeconds(PAYMENT_WAIT_SECONDS);
+
+      if (!email.trim() || !password) {
+        setLoginError("Informe e-mail e senha para acessar novamente.");
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setLoginError(null);
+        const data = await UserService.verifyEmail({ email, password });
+        setCompanyId(data.companyId);
+        companyIdRef.current = data.companyId;
+        localStorage.setItem("companyId", String(data.companyId));
+        setStep("verify");
+      } catch (error) {
+        const apiMessage = getApiMessage(error);
+
+        if (
+          axios.isAxiosError(error) &&
+          error.response?.status === 403 &&
+          isPaymentBlockedMessage(apiMessage)
+        ) {
+          const paymentPayload = getPaymentBlockPayload(error);
+          setPaymentBlock(createPaymentBlockModal(apiMessage, paymentPayload));
+          return;
+        }
+
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          setLoginError(
+            "E-mail ou senha incorretos. Confira os dados e tente novamente.",
+          );
+          return;
+        }
+
+        toast.error("Não foi possível acessar automaticamente. Tente novamente.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const updateRemainingTime = () => {
+      const remainingSeconds = Math.max(
+        0,
+        Math.ceil((paymentWaitUntil - Date.now()) / 1000),
+      );
+
+      setPaymentWaitSeconds(remainingSeconds);
+
+      if (remainingSeconds <= 0) {
+        void finishPaymentWait();
+      }
+    };
+
+    updateRemainingTime();
+
+    const timer = window.setInterval(updateRemainingTime, 1000);
+    return () => window.clearInterval(timer);
+  }, [email, modalPayment, password, paymentModalStep, paymentWaitUntil]);
+
+  const resetPaymentModal = useCallback(() => {
+    localStorage.removeItem(PAYMENT_WAITING_STORAGE_KEY);
+    localStorage.removeItem(PAYMENT_WAIT_UNTIL_STORAGE_KEY);
+    setModalPayment(false);
+    setPaymentBlock(null);
+    setPaymentModalStep("notice");
+    setPaymentReported(false);
+    setPaymentWaitUntil(null);
+    setPaymentWaitSeconds(PAYMENT_WAIT_SECONDS);
+  }, []);
+
+  const startPaymentWait = useCallback(async () => {
+    const targetCompanyId =
+      paymentBlock?.companyId ||
+      companyIdRef.current ||
+      companyId ||
+      localStorage.getItem("companyId") ||
+      "";
+
+    if (!targetCompanyId) {
+      toast.error("Não foi possível identificar a empresa para ativar.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const updatedCompany = await CompanyService.updateInscription(
+        targetCompanyId,
+        SubscriptionStatusEnum.ACTIVATED,
+      );
+
+      setCompanyId(targetCompanyId);
+      companyIdRef.current = targetCompanyId;
+      localStorage.setItem("companyId", targetCompanyId);
+      localStorage.setItem("company", JSON.stringify(updatedCompany));
+
+      const waitUntil = Date.now() + PAYMENT_WAIT_SECONDS * 1000;
+      localStorage.setItem(PAYMENT_WAITING_STORAGE_KEY, "true");
+      localStorage.setItem(PAYMENT_WAIT_UNTIL_STORAGE_KEY, String(waitUntil));
+      setModalPayment(true);
+      setPaymentReported(true);
+      setPaymentModalStep("waiting");
+      setPaymentWaitUntil(waitUntil);
+      setPaymentWaitSeconds(PAYMENT_WAIT_SECONDS);
+    } catch {
+      toast.error("Não foi possível ativar a assinatura. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId, paymentBlock?.companyId]);
+
   const showErrorToast = useCallback(() => {
     toast.error(
       <div className={styles.connectionToastContent}>
@@ -225,9 +573,69 @@ export default function Login() {
     );
   }, [supportUrl]);
 
+  const handleCopyPixCode = useCallback(async (pixCode: string) => {
+    try {
+      await copyTextToClipboard(pixCode);
+      setPixCopied(true);
+      window.setTimeout(() => setPixCopied(false), 1800);
+    } catch {
+      toast.error("Não foi possível copiar o código Pix.");
+    }
+  }, []);
+
+  const showPaymentReviewToast = useCallback(() => {
+    toast.info(
+      <div className={styles.paymentToastContent}>
+        <span className={styles.paymentToastIcon} aria-hidden>
+          <Check size={18} />
+        </span>
+        <div className={styles.paymentToastText}>
+          <strong>Pagamento informado</strong>
+          <span>
+            Nossa equipe está analisando. Tente acessar novamente em até 5
+            minutos.
+          </span>
+        </div>
+      </div>,
+      {
+        className: styles.paymentToast,
+        progressClassName: styles.paymentToastProgress,
+        icon: false,
+        position: "top-right",
+        autoClose: 6000,
+      },
+    );
+  }, []);
+
+  const handleTogglePaymentReported = useCallback(() => {
+    setPaymentReported((current) => {
+      const next = !current;
+      if (next) {
+        showPaymentReviewToast();
+      }
+      return next;
+    });
+  }, [showPaymentReviewToast]);
+
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
+
+      const storedWaiting =
+        localStorage.getItem(PAYMENT_WAITING_STORAGE_KEY) === "true";
+      const storedWaitUntil = Number(
+        localStorage.getItem(PAYMENT_WAIT_UNTIL_STORAGE_KEY),
+      );
+      const hasActiveStoredWait =
+        storedWaiting &&
+        (!Number.isFinite(storedWaitUntil) || storedWaitUntil > Date.now());
+
+      if (
+        (modalPayment && paymentModalStep === "waiting") ||
+        hasActiveStoredWait
+      ) {
+        return;
+      }
 
       if (step === "login") {
         if (!email.trim() || !password) {
@@ -238,13 +646,38 @@ export default function Login() {
         try {
           setLoading(true);
           setLoginError(null);
+          resetPaymentModal();
           const data = await UserService.verifyEmail({ email, password });
           setCompanyId(data.companyId);
           companyIdRef.current = data.companyId;
           localStorage.setItem("companyId", String(data.companyId));
           setStep("verify");
         } catch (error) {
-          if (axios.isAxiosError(error) && error.response?.status === 401) {
+          const apiMessage = getApiMessage(error);
+          const paymentPayload = getPaymentBlockPayload(error);
+
+          if (
+            axios.isAxiosError(error) &&
+            error.response?.status === 403 &&
+            isPaymentBlockedMessage(apiMessage)
+          ) {
+            setLoginError(null);
+            setPixCopied(false);
+            setModalPayment(false);
+            setPaymentModalStep("notice");
+            setPaymentReported(false);
+            setPaymentWaitUntil(null);
+            setPaymentWaitSeconds(PAYMENT_WAIT_SECONDS);
+            if (paymentPayload.companyId) {
+              setCompanyId(paymentPayload.companyId);
+              companyIdRef.current = paymentPayload.companyId;
+              localStorage.setItem("companyId", paymentPayload.companyId);
+            }
+            setPaymentBlock(createPaymentBlockModal(apiMessage, paymentPayload));
+          } else if (
+            axios.isAxiosError(error) &&
+            error.response?.status === 401
+          ) {
             setLoginError(
               "E-mail ou senha incorretos. Confira os dados e tente novamente.",
             );
@@ -365,8 +798,11 @@ export default function Login() {
       code,
       contextLogin,
       email,
+      modalPayment,
       navigate,
       password,
+      paymentModalStep,
+      resetPaymentModal,
       showErrorToast,
       step,
       companyId,
@@ -440,6 +876,8 @@ export default function Login() {
     codeRefs.current[focusIndex]?.focus();
   }
 
+  const isPaymentModalOpen = Boolean(paymentBlock) || modalPayment;
+
   return (
     <div className={styles.page}>
       <div className={styles.pageTopBar}>
@@ -463,6 +901,189 @@ export default function Login() {
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
       </div>
+
+      {isPaymentModalOpen && (
+        <div className={styles.paymentOverlay}>
+          <div
+            className={styles.paymentModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payment-modal-title"
+          >
+            {paymentModalStep !== "waiting" && (
+              <button
+                type="button"
+                className={styles.paymentClose}
+                onClick={resetPaymentModal}
+                aria-label="Fechar aviso de pagamento"
+              >
+                <X size={18} />
+              </button>
+            )}
+
+            <div className={styles.paymentHero}>
+              <span className={styles.paymentHeroIcon}>
+                <Lock size={22} />
+              </span>
+              <div className={styles.paymentHeroText}>
+                <span>Acesso bloqueado</span>
+                <h2 id="payment-modal-title">Pagamento pendente</h2>
+              </div>
+            </div>
+
+            {paymentModalStep === "notice" && paymentBlock ? (
+              <>
+                <p className={styles.paymentDescription}>
+                  Seu painel está temporariamente pausado. Para liberar o
+                  acesso, faça o pagamento e envie o comprovante pelo WhatsApp.
+                </p>
+
+                <div className={styles.paymentDueCard}>
+                  <span>Vencimento informado</span>
+                  <strong>{paymentBlock.dueDate}</strong>
+                </div>
+
+                <div className={styles.paymentNoticeInfo}>
+                  <span>Pagamento Pix</span>
+                  <strong>R$ 100,00</strong>
+                  <p>
+                    Na próxima etapa você verá o QR Code e o código copia e
+                    cola.
+                  </p>
+                </div>
+
+                <div className={styles.paymentActions}>
+                  <button
+                    type="button"
+                    className={styles.paymentPrimary}
+                    onClick={() => {
+                      setPixCopied(false);
+                      setPaymentModalStep("pix");
+                    }}
+                  >
+                    <QrCode size={17} />
+                    Pagar
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.paymentSecondary}
+                    onClick={resetPaymentModal}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : paymentModalStep === "pix" && paymentBlock ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.paymentStepBack}
+                  onClick={() => {
+                    setPaymentReported(false);
+                    setPaymentModalStep("notice");
+                    setPaymentWaitSeconds(PAYMENT_WAIT_SECONDS);
+                  }}
+                >
+                  <ChevronLeft size={16} />
+                  Voltar
+                </button>
+
+                <div className={styles.paymentBarcodeCard}>
+                  <div className={styles.paymentBarcodeHeader}>
+                    <QrCode size={16} />
+                    <span>QR Code Pix</span>
+                  </div>
+                  <img
+                    className={styles.paymentQrCodeImage}
+                    src={pixQrCode}
+                    alt="QR Code Pix para pagamento"
+                  />
+                  <div className={styles.paymentPixCodeBox}>
+                    <code>{paymentBlock.pixCode}</code>
+                    <button
+                      type="button"
+                      className={`${styles.paymentCopyButton} ${
+                        pixCopied ? styles.paymentCopyButtonCopied : ""
+                      }`}
+                      onClick={() => handleCopyPixCode(paymentBlock.pixCode)}
+                    >
+                      {pixCopied ? <Check size={15} /> : <Copy size={15} />}
+                      {pixCopied ? "Copiado" : "Copiar código"}
+                    </button>
+                  </div>
+                  <div className={styles.paymentReceiver}>
+                    <span>Nome informado</span>
+                    <strong>{PAYMENT_RECEIVER_NAME}</strong>
+                  </div>
+                  <strong>PAGUE E ENVIE O COMPROVANTE NO WHATSAPP</strong>
+                  <button
+                    type="button"
+                    className={`${styles.paymentPaidSwitch} ${
+                      paymentReported ? styles.paymentPaidSwitchActive : ""
+                    }`}
+                    onClick={handleTogglePaymentReported}
+                    aria-pressed={paymentReported}
+                  >
+                    <span className={styles.paymentSwitchTrack} aria-hidden>
+                      <span className={styles.paymentSwitchThumb} />
+                    </span>
+                    <span>
+                      {paymentReported ? "Pagamento informado" : "Já paguei"}
+                    </span>
+                  </button>
+                  {paymentReported && (
+                    <div className={styles.paymentReviewAlert} role="status">
+                      <strong>Comprovante em análise</strong>
+                      <span>
+                        Nossa equipe está analisando o pagamento. Tente acessar
+                        novamente em até 5 minutos.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.paymentActions}>
+                  <a
+                    className={styles.paymentPrimary}
+                    href={paymentBlock.whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <MessageCircle size={17} />
+                    Enviar comprovante
+                  </a>
+                  <button
+                    type="button"
+                    className={styles.paymentSecondary}
+                    onClick={startPaymentWait}
+                    disabled={loading}
+                  >
+                    {loading ? "Ativando..." : "Próximo"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={styles.paymentWaitingCard}>
+                  <span className={styles.paymentWaitingIcon} aria-hidden>
+                    <Timer size={24} />
+                  </span>
+                  <span className={styles.paymentWaitingLabel}>
+                    Comprovante em análise
+                  </span>
+                  <strong>{formatWaitTime(paymentWaitSeconds)}</strong>
+                  <p>
+                    Após o cronômetro, você poderá fazer login novamente. Se o
+                    pagamento ainda não for confirmado, nossa equipe finalizará
+                    a análise pelo WhatsApp.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className={styles.card}>
         {step !== "login" && (
           <button
@@ -530,8 +1151,15 @@ export default function Login() {
                     className={styles.input}
                     value={email}
                     onChange={(e) => {
+                      if (modalPayment && paymentModalStep === "waiting") {
+                        return;
+                      }
+
                       setEmail(e.target.value);
                       setLoginError(null);
+                      setPaymentBlock(null);
+                      setPaymentModalStep("notice");
+                      setPaymentWaitSeconds(PAYMENT_WAIT_SECONDS);
                     }}
                     placeholder="exemplo@pinha.com.br"
                     type="email"
@@ -552,8 +1180,15 @@ export default function Login() {
                     className={styles.input}
                     value={password}
                     onChange={(e) => {
+                      if (modalPayment && paymentModalStep === "waiting") {
+                        return;
+                      }
+
                       setPassword(e.target.value);
                       setLoginError(null);
+                      setPaymentBlock(null);
+                      setPaymentModalStep("notice");
+                      setPaymentWaitSeconds(PAYMENT_WAIT_SECONDS);
                     }}
                     placeholder="••••••••"
                     type={showPass ? "text" : "password"}

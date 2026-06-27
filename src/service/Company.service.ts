@@ -1,3 +1,4 @@
+import type { SubscriptionStatusEnum } from "../dtos/enums/subscription-status.num";
 import type { CompanyRequestDto } from "../dtos/request/company-request.dto";
 import type { CompanyResponseDto } from "../dtos/response/company-response.dto";
 import api from "./api";
@@ -16,7 +17,10 @@ export const CompanyService = {
   },
 
   update: async (companyId: string, dto: Partial<CompanyRequestDto>) => {
-    const response = await api.patch<CompanyResponseDto>(`/company/${companyId}`, dto);
+    const response = await api.patch<CompanyResponseDto>(
+      `/company/${companyId}`,
+      dto,
+    );
     return response.data;
   },
 
@@ -27,6 +31,17 @@ export const CompanyService = {
 
   findAll: async (): Promise<CompanyResponseDto[]> => {
     const response = await api.get<CompanyResponseDto[]>(`/company`);
+    return response.data;
+  },
+
+  updateInscription: async (
+    id: string,
+    status: SubscriptionStatusEnum,
+  ): Promise<CompanyResponseDto> => {
+    const response = await api.put<CompanyResponseDto>(
+      `/company/subscription/${id}`,
+      { status },
+    );
     return response.data;
   },
 };

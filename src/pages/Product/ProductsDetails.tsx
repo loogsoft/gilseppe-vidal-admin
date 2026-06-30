@@ -32,6 +32,11 @@ const ProductType = {
   VARIATION: "VARIATION",
 } as const;
 
+const SIZES = ["P", "M", "G", "GG", "XG", "36", "38", "40", "42", "44", "46"];
+const CUSTOM_SIZE_VALUE = "__custom_size__";
+const normalizeSizeValue = (value: string) =>
+  value.replace(/[\r\n\t]/g, "").toUpperCase().slice(0, 50);
+
 export function ProductsDetails() {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
@@ -40,6 +45,7 @@ export function ProductsDetails() {
   const variationFileInputRef = useRef<HTMLInputElement | null>(null);
   const colorPickerRef = useRef<HTMLInputElement | null>(null);
   const barCodeInputRef = useRef<HTMLInputElement | null>(null);
+  const variationBarCodeInputRef = useRef<HTMLInputElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [editingColor, setEditingColor] = useState(false);
@@ -47,6 +53,9 @@ export function ProductsDetails() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [newCodeBarModal, setNewCodeBarModal] = useState(false);
+  const [codeBarTarget, setCodeBarTarget] = useState<"product" | "variation">(
+    "product",
+  );
 
   const [productType, setProductType] = useState<
     (typeof ProductType)[keyof typeof ProductType]
@@ -101,6 +110,7 @@ export function ProductsDetails() {
   const [saving, setSaving] = useState(false);
   const [variations, setVariations] = useState<Variation[]>([]);
   const [expandedVariationForm, setExpandedVariationForm] = useState(false);
+  const [variationBarCode, setVariationBarCode] = useState("");
   const [variationPrice, setVariationPrice] = useState("");
   const [variationStock, setVariationStock] = useState("");
   const [variationColor, setVariationColor] = useState("");
@@ -169,7 +179,7 @@ export function ProductsDetails() {
           data.promoPrice ? String(data.promoPrice).replace(".", ",") : "",
         );
         setColor(data.color ?? "");
-        setSize(data.size ?? "P");
+        setSize(normalizeSizeValue(data.size ?? "P"));
         setLowStock(String(data.lowStock ?? ""));
         setActiveLowStock(!!data.activeLowStock);
         setStock(String(data.stock ?? ""));
@@ -188,11 +198,12 @@ export function ProductsDetails() {
         );
         const cleanLoadedVariations = (data.variations || []).map((v) => ({
           name: v.name ?? undefined,
+          barCode: v.barCode ?? undefined,
           price: v.price === null ? undefined : Number(v.price),
           stock: Number(v.stock ?? 0),
           isActive: v.isActive ?? true,
           color: v.color ?? "",
-          size: v.size ?? "",
+          size: normalizeSizeValue(v.size ?? ""),
           imageUrl: v.imageUrl ?? undefined,
           activeLowStock: v.activeLowStock ?? false,
           lowStock: v.lowStock ?? 0,
@@ -249,10 +260,11 @@ export function ProductsDetails() {
   };
 
   const onOpenVariationForm = () => {
+    setVariationBarCode("");
     setVariationPrice("");
     setVariationStock("");
     setVariationColor("");
-    setVariationSize("");
+    setVariationSize("P");
     setVariationIsActive(true);
     setVariationImageFiles([]);
     setVariationImagePreviews([]);
@@ -266,6 +278,7 @@ export function ProductsDetails() {
 
   const onCloseVariationForm = () => {
     setExpandedVariationForm(false);
+    setVariationBarCode("");
     setVariationImageFiles([]);
     setVariationImagePreviews([]);
     setSelectedVariationImageIndex(0);
@@ -284,8 +297,9 @@ export function ProductsDetails() {
 
   const onEditVariation = (index: number) => {
     const v = variations[index];
+    setVariationBarCode(v.barCode || "");
     setVariationColor(v.color || "");
-    setVariationSize(v.size || "");
+    setVariationSize(normalizeSizeValue(v.size || ""));
     setVariationPrice(v.price ? String(v.price).replace(".", ",") : "");
     setVariationStock(
       v.stock !== undefined && v.stock !== null ? String(v.stock) : "",
@@ -348,6 +362,12 @@ export function ProductsDetails() {
   };
 
   const onAddVariation = () => {
+    if (!variationBarCode.trim()) {
+      toast.error("Informe o SKU da variação.");
+      variationBarCodeInputRef.current?.focus();
+      return;
+    }
+
     if (!variationColor.trim() || !variationSize.trim()) {
       toast.error("Informe a cor e o tamanho da variação.");
       return;
@@ -400,10 +420,23 @@ export function ProductsDetails() {
       return;
     }
 
+    const duplicateBarCode = variations.some(
+      (v, i) =>
+        v.barCode?.trim().toLowerCase() ===
+          variationBarCode.trim().toLowerCase() &&
+        i !== editingVariationIndex,
+    );
+
+    if (duplicateBarCode) {
+      toast.error("Já existe uma variação com este SKU.");
+      return;
+    }
+
     const targetIndex = editingVariationIndex;
 
     const newVariation: ProductVariationRequestDto = {
       name: `${variationColor.trim()} ${variationSize.trim()}`,
+      barCode: variationBarCode.trim(),
       price: variationPrice.trim()
         ? Number(variationPrice.replace(",", "."))
         : 0,
@@ -448,7 +481,7 @@ export function ProductsDetails() {
   const onSave = async () => {
     if (saving) return;
 
-    if (!barCode.trim()) {
+    if (productType === ProductType.UNIQUE && !barCode.trim()) {
       toast.error("Informe o código de barras do produto.");
       barCodeInputRef.current?.focus();
       return;
@@ -496,6 +529,9 @@ export function ProductsDetails() {
     } else if (variations.length === 0) {
       toast.error("Adicione pelo menos uma variação ao produto.");
       return;
+    } else if (variations.some((variation) => !variation.barCode?.trim())) {
+      toast.error("Informe o SKU de todas as variações.");
+      return;
     }
 
     if (promoPrice.trim() && productType === ProductType.UNIQUE) {
@@ -529,6 +565,7 @@ export function ProductsDetails() {
             }
             return {
               name: variation.name ?? undefined,
+              barCode: variation.barCode?.trim() || undefined,
               price: priceValue,
               stock:
                 variation.stock !== undefined && variation.stock !== null
@@ -550,7 +587,8 @@ export function ProductsDetails() {
           })
         : undefined;
     const payload: ProductRequest = {
-      barCode: barCode.trim(),
+      barCode:
+        productType === ProductType.UNIQUE ? barCode.trim() : undefined,
       name: name.trim(),
       description: description.trim() || undefined,
       category,
@@ -618,8 +656,11 @@ export function ProductsDetails() {
 
   const actionLabel = isEdit ? "Salvar alterações" : "Criar produto";
   const loadingLabel = isEdit ? "Salvando..." : "Criando...";
+  const sizeSelectValue = SIZES.includes(size) ? size : CUSTOM_SIZE_VALUE;
+  const variationSizeSelectValue = SIZES.includes(variationSize)
+    ? variationSize
+    : CUSTOM_SIZE_VALUE;
 
-  const SIZES = ["P", "M", "G", "GG", "XG", "36", "38", "40", "42", "44", "46"];
   return (
     <div className={styles.page}>
       <input
@@ -738,71 +779,82 @@ export function ProductsDetails() {
                   tamanho.
                 </span>
               </div>
-
-              <label className={styles.field}>
-                <div>
-                  <span className={styles.label}>Código de barras *</span>
-                  <span
-                    style={{
-                      marginLeft: 20,
-                      fontSize: 10,
-                      color: "#ff9800",
-                      fontWeight: "600",
-                    }}
-                    onClick={() => setNewCodeBarModal(true)}
-                  >
-                    Produto não possui código?
-                  </span>
-                </div>
-                <div className={styles.barCodeControl}>
-                  <Barcode
-                    className={styles.barCodeLeadingIcon}
-                    size={20}
-                    aria-hidden="true"
-                  />
-                  <input
-                    ref={barCodeInputRef}
-                    className={`${styles.input} ${styles.barCodeInput}`}
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-describedby="bar-code-hint"
-                    placeholder="Leia o código ou digite manualmente"
-                    value={barCode}
-                    onChange={(event) =>
-                      setBarCode(event.target.value.replace(/[\r\n\t]/g, ""))
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && barCode.trim()) {
-                        event.preventDefault();
-                        nameInputRef.current?.focus();
+              {productType === ProductType.UNIQUE && (
+                <label className={styles.field}>
+                  <div>
+                    <span className={styles.label}>Código de barras *</span>
+                    <span
+                      style={{
+                        marginLeft: 20,
+                        fontSize: 10,
+                        color: "#ff9800",
+                        fontWeight: "600",
+                      }}
+                      onClick={() => {
+                        setCodeBarTarget("product");
+                        setNewCodeBarModal(true);
+                      }}
+                    >
+                      Produto não possui código?
+                    </span>
+                  </div>
+                  <div className={styles.barCodeControl}>
+                    <Barcode
+                      className={styles.barCodeLeadingIcon}
+                      size={20}
+                      aria-hidden="true"
+                    />
+                    <input
+                      ref={barCodeInputRef}
+                      className={`${styles.input} ${styles.barCodeInput}`}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      spellCheck={false}
+                      aria-describedby="bar-code-hint"
+                      placeholder="Leia o código ou digite manualmente"
+                      value={barCode}
+                      onChange={(event) =>
+                        setBarCode(event.target.value.replace(/[\r\n\t]/g, ""))
                       }
-                    }}
-                    maxLength={180}
-                    disabled={loadingProduct}
-                  />
-                  <button
-                    className={styles.barCodeFocusButton}
-                    type="button"
-                    onClick={() => barCodeInputRef.current?.focus()}
-                    disabled={loadingProduct}
-                    aria-label="Ativar campo para leitura do código de barras"
-                    title="Posicionar cursor para usar o leitor"
-                  >
-                    Usar leitor
-                  </button>
-                </div>
-                <span id="bar-code-hint" className={styles.fieldHint}>
-                  Posicione o cursor no campo e leia a etiqueta. Você também
-                  pode digitar o código manualmente.
-                </span>
-              </label>
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && barCode.trim()) {
+                          event.preventDefault();
+                          nameInputRef.current?.focus();
+                        }
+                      }}
+                      maxLength={180}
+                      disabled={loadingProduct}
+                    />
+                    <button
+                      className={styles.barCodeFocusButton}
+                      type="button"
+                      onClick={() => barCodeInputRef.current?.focus()}
+                      disabled={loadingProduct}
+                      aria-label="Ativar campo para leitura do código de barras"
+                      title="Posicionar cursor para usar o leitor"
+                    >
+                      Usar leitor
+                    </button>
+                  </div>
+                  <span id="bar-code-hint" className={styles.fieldHint}>
+                    Posicione o cursor no campo e leia a etiqueta. Você também
+                    pode digitar o código manualmente.
+                  </span>
+                </label>
+              )}
 
               <NewCodeBarModal
                 isOpen={newCodeBarModal}
                 onClose={() => setNewCodeBarModal(false)}
-                onGenerate={(code) => setBarCode(code)}
+                onGenerate={(code) => {
+                  if (codeBarTarget === "variation") {
+                    setVariationBarCode(code);
+                    return;
+                  }
+
+                  setBarCode(code);
+                }}
               />
 
               <label className={styles.field}>
@@ -998,15 +1050,35 @@ export function ProductsDetails() {
                       <label className={styles.label}>TAMANHO</label>
                       <select
                         className={styles.select}
-                        value={size}
-                        onChange={(e) => setSize(e.target.value)}
+                        value={sizeSelectValue}
+                        onChange={(e) =>
+                          setSize(
+                            e.target.value === CUSTOM_SIZE_VALUE
+                              ? ""
+                              : e.target.value,
+                          )
+                        }
                       >
                         {SIZES.map((s) => (
                           <option key={s} value={s}>
                             {s}
                           </option>
                         ))}
+                        <option value={CUSTOM_SIZE_VALUE}>
+                          Outro tamanho...
+                        </option>
                       </select>
+                      {sizeSelectValue === CUSTOM_SIZE_VALUE && (
+                        <input
+                          className={styles.input}
+                          placeholder="Ex: PP, XGG ou 48"
+                          value={size}
+                          onChange={(event) =>
+                            setSize(normalizeSizeValue(event.target.value))
+                          }
+                          maxLength={50}
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -1161,6 +1233,75 @@ export function ProductsDetails() {
                               </div>
                             </div>
                             <div className={styles.variationInfoRow}>
+                              <label
+                                className={styles.field}
+                                style={{ gridColumn: "1 / -1" }}
+                              >
+                                <div>
+                                  <span className={styles.label}>
+                                    SKU / código de barras *
+                                  </span>
+                                  <span
+                                    style={{
+                                      marginLeft: 20,
+                                      fontSize: 10,
+                                      color: "#ff9800",
+                                      fontWeight: "600",
+                                    }}
+                                    onClick={() => {
+                                      setCodeBarTarget("variation");
+                                      setNewCodeBarModal(true);
+                                    }}
+                                  >
+                                    Variação não possui código?
+                                  </span>
+                                </div>
+                                <div className={styles.barCodeControl}>
+                                  <Barcode
+                                    className={styles.barCodeLeadingIcon}
+                                    size={20}
+                                    aria-hidden="true"
+                                  />
+                                  <input
+                                    ref={variationBarCodeInputRef}
+                                    className={`${styles.input} ${styles.barCodeInput}`}
+                                    type="text"
+                                    inputMode="numeric"
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    placeholder="Leia o SKU ou digite manualmente"
+                                    value={variationBarCode}
+                                    onChange={(event) =>
+                                      setVariationBarCode(
+                                        event.target.value.replace(
+                                          /[\r\n\t]/g,
+                                          "",
+                                        ),
+                                      )
+                                    }
+                                    onKeyDown={(event) => {
+                                      if (
+                                        event.key === "Enter" &&
+                                        variationBarCode.trim()
+                                      ) {
+                                        event.preventDefault();
+                                      }
+                                    }}
+                                    maxLength={180}
+                                  />
+                                  <button
+                                    className={styles.barCodeFocusButton}
+                                    type="button"
+                                    onClick={() =>
+                                      variationBarCodeInputRef.current?.focus()
+                                    }
+                                    aria-label="Ativar campo para leitura do SKU da variação"
+                                    title="Posicionar cursor para usar o leitor"
+                                  >
+                                    Usar leitor
+                                  </button>
+                                </div>
+                              </label>
                               <div className={styles.field}>
                                 <span className={styles.label}>Cor *</span>
                                 <div className={styles.colorSwatches}>
@@ -1250,15 +1391,40 @@ export function ProductsDetails() {
                               </div>
                               <label className={styles.field}>
                                 <span className={styles.label}>Tamanho *</span>
-                                <input
-                                  className={styles.input}
-                                  placeholder="Ex: M, G ou 42"
-                                  value={variationSize}
+                                <select
+                                  className={styles.select}
+                                  value={variationSizeSelectValue}
                                   onChange={(event) =>
-                                    setVariationSize(event.target.value)
+                                    setVariationSize(
+                                      event.target.value === CUSTOM_SIZE_VALUE
+                                        ? ""
+                                        : event.target.value,
+                                    )
                                   }
-                                  maxLength={50}
-                                />
+                                >
+                                  {SIZES.map((s) => (
+                                    <option key={s} value={s}>
+                                      {s}
+                                    </option>
+                                  ))}
+                                  <option value={CUSTOM_SIZE_VALUE}>
+                                    Outro tamanho...
+                                  </option>
+                                </select>
+                                {variationSizeSelectValue ===
+                                  CUSTOM_SIZE_VALUE && (
+                                  <input
+                                    className={styles.input}
+                                    placeholder="Ex: PP, XGG ou 48"
+                                    value={variationSize}
+                                    onChange={(event) =>
+                                      setVariationSize(
+                                        normalizeSizeValue(event.target.value),
+                                      )
+                                    }
+                                    maxLength={50}
+                                  />
+                                )}
                               </label>
                             </div>
                           </section>

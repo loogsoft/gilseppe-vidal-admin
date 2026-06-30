@@ -24,8 +24,6 @@ import { StockMovementService } from "../../service/Stock-movement.service";
 import { DiscountStockFilterModal } from "../../components/FilterModal/DiscountStockFilterModal";
 import {
   getProductStockEntries,
-  getProductStockLevel,
-  getProductTotalStock,
   productHasAvailableStock,
   type ProductStockEntry,
 } from "../../utils/productStock";
@@ -45,9 +43,75 @@ type StockSearchResult =
   | { product: ProductResponse; entry: ProductStockEntry }
   | "requires-variation"
   | null;
+type DiscountStockCardItem = {
+  product: ProductResponse;
+  entry: ProductStockEntry;
+};
 
-const getStockLevel = (p: ProductResponse): "ok" | "low" | "critical" => {
-  return getProductStockLevel(p);
+const getStockItemLabel = (entry: ProductStockEntry) => {
+  if (entry.kind === "product") return "Produto principal";
+
+  return [entry.variation?.color, entry.variation?.size]
+    .filter(Boolean)
+    .join(" • ");
+};
+
+const getStockEntryLevel = (
+  entry: ProductStockEntry,
+): "ok" | "low" | "critical" => {
+  if (entry.stock <= 0) return "critical";
+  if (
+    entry.lowStockEnabled &&
+    entry.lowStock > 0 &&
+    entry.stock <= entry.lowStock
+  ) {
+    return "low";
+  }
+  return "ok";
+};
+
+const getStockEntryPrice = (
+  product: ProductResponse,
+  entry: ProductStockEntry,
+) => Number(entry.variation?.price ?? product.price ?? 0);
+
+const getStockCardSearchText = ({ product, entry }: DiscountStockCardItem) =>
+  [
+    product.id,
+    product.name,
+    product.description,
+    product.category,
+    product.barCode,
+    entry.id,
+    entry.variation?.name,
+    entry.variation?.barCode,
+    entry.variation?.color,
+    entry.variation?.size,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+const getStockCardImages = (
+  product: ProductResponse,
+  entry: ProductStockEntry,
+) => {
+  const variationImageUrl = Array.isArray(entry.variation?.imageUrl)
+    ? entry.variation?.imageUrl[0]
+    : entry.variation?.imageUrl;
+
+  if (variationImageUrl) {
+    return [
+      {
+        url: variationImageUrl,
+        fileName: entry.variation?.name || product.name,
+        id: entry.variation?.id || product.id,
+        isPrimary: true,
+      },
+    ];
+  }
+
+  return product.images || [];
 };
 
 export function DiscountStock() {
@@ -164,31 +228,38 @@ export function DiscountStock() {
     ];
   }, [products]);
 
+  const stockCardItems = useMemo<DiscountStockCardItem[]>(
+    () =>
+      products.flatMap((product) =>
+        getProductStockEntries(product)
+          .filter((entry) => entry.stock > 0)
+          .map((entry) => ({ product, entry })),
+      ),
+    [products],
+  );
+
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase();
 
-    const filtered = products.filter((item) => {
-      if (!productHasAvailableStock(item)) return false;
-
+    const filtered = stockCardItems.filter((item) => {
+      const { product, entry } = item;
       const matchesSearch = term
-        ? `${item.name} ${item.description ?? ""} ${item.category} ${item.barCode}`
-            .toLowerCase()
-            .includes(term)
+        ? getStockCardSearchText(item).includes(term)
         : true;
 
       const matchesCategory =
-        category === "all" ? true : item.category === category;
+        category === "all" ? true : product.category === category;
 
+      const price = getStockEntryPrice(product, entry);
       const matchesPrice =
-        (!filters.minPrice || Number(item.price) >= Number(filters.minPrice)) &&
-        (!filters.maxPrice || Number(item.price) <= Number(filters.maxPrice));
+        (!filters.minPrice || price >= Number(filters.minPrice)) &&
+        (!filters.maxPrice || price <= Number(filters.maxPrice));
 
-      const totalStock = getProductTotalStock(item);
       const matchesStock =
-        (!filters.minStock || totalStock >= Number(filters.minStock)) &&
-        (!filters.maxStock || totalStock <= Number(filters.maxStock));
+        (!filters.minStock || entry.stock >= Number(filters.minStock)) &&
+        (!filters.maxStock || entry.stock <= Number(filters.maxStock));
 
-      const level = getStockLevel(item);
+      const level = getStockEntryLevel(entry);
       const matchesLevel =
         filters.stockLevel === "all" || level === filters.stockLevel;
 
@@ -204,18 +275,28 @@ export function DiscountStock() {
     const sorted = [...filtered];
     sorted.sort((a, b) => {
       if (filters.sortBy === "priceAsc")
-        return Number(a.price) - Number(b.price);
+        return (
+          getStockEntryPrice(a.product, a.entry) -
+          getStockEntryPrice(b.product, b.entry)
+        );
       if (filters.sortBy === "priceDesc")
-        return Number(b.price) - Number(a.price);
-      if (filters.sortBy === "stockAsc")
-        return getProductTotalStock(a) - getProductTotalStock(b);
-      if (filters.sortBy === "stockDesc")
-        return getProductTotalStock(b) - getProductTotalStock(a);
-      return a.name.localeCompare(b.name, "pt-BR");
+        return (
+          getStockEntryPrice(b.product, b.entry) -
+          getStockEntryPrice(a.product, a.entry)
+        );
+      if (filters.sortBy === "stockAsc") return a.entry.stock - b.entry.stock;
+      if (filters.sortBy === "stockDesc") return b.entry.stock - a.entry.stock;
+      return (
+        a.product.name.localeCompare(b.product.name, "pt-BR") ||
+        getStockItemLabel(a.entry).localeCompare(
+          getStockItemLabel(b.entry),
+          "pt-BR",
+        )
+      );
     });
 
     return sorted;
-  }, [search, category, filters, products]);
+  }, [search, category, filters, stockCardItems]);
 
   useEffect(() => {
     setPage(1);
@@ -230,14 +311,6 @@ export function DiscountStock() {
   }, [filteredItems, currentPage, pageSize]);
 
   const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
-
-  const getStockItemLabel = (entry: ProductStockEntry) => {
-    if (entry.kind === "product") return "Produto principal";
-
-    return [entry.variation?.color, entry.variation?.size]
-      .filter(Boolean)
-      .join(" • ");
-  };
 
   const createScanCartItem = (
     product: ProductResponse,
@@ -287,17 +360,16 @@ export function DiscountStock() {
     requestAnimationFrame(() => stockSearchInputRef.current?.focus());
   };
 
-  const handleProductCardDiscount = (product: ProductResponse) => {
-    const availableEntries = getProductStockEntries(product).filter(
-      (entry) => entry.stock > 0,
-    );
-
-    if (!availableEntries.length) {
+  const handleStockCardDiscount = (
+    product: ProductResponse,
+    entry: ProductStockEntry,
+  ) => {
+    if (entry.stock <= 0) {
       toast.warning("Produto sem estoque disponível para baixa.");
       return;
     }
 
-    addStockEntryToScanCart(product, availableEntries[0]);
+    addStockEntryToScanCart(product, entry);
   };
 
   const resolveStockEntryFromSearch = (term: string): StockSearchResult => {
@@ -348,16 +420,8 @@ export function DiscountStock() {
     const fallbackResolved =
       resolved === null && filteredItems.length === 1
         ? (() => {
-            const product = filteredItems[0];
-            const entries = getProductStockEntries(product).filter(
-              (entry) => entry.stock > 0,
-            );
-
-            if (entries.length === 1) {
-              return { product, entry: entries[0] };
-            }
-
-            return "requires-variation" as const;
+            const item = filteredItems[0];
+            return { product: item.product, entry: item.entry };
           })()
         : resolved;
 
@@ -603,72 +667,59 @@ export function DiscountStock() {
                 </p>
               </div>
             ) : (
-              pagedStockItems.map((item) => (
-                <EntityCard
-                  key={item.id}
-                  id={item.id}
-                  type="product"
-                  name={item.name}
-                  description={item.description}
-                  category={item.category}
-                  price={item.price}
-                  promoPrice={item.promoPrice}
-                  imageUrl={[
-                    ...(item.images || []),
-                    ...((item.variations || [])
-                      .filter((v) => v.imageUrl)
-                      .map((v) => ({
-                        url: Array.isArray(v.imageUrl)
-                          ? v.imageUrl[0]
-                          : v.imageUrl || "",
-                        fileName: v.name || "",
-                        id: v.id || "",
-                        isPrimary: false,
-                      }))),
-                  ]}
-                  stock={item.stock ?? undefined}
-                  lowStock={item.lowStock}
-                  available={item.status === ProductStatusEnum.ACTIVED}
-                  color={item.color}
-                  colors={Array.from(
-                    new Set([
-                      ...(item.color ? [item.color] : []),
-                      ...((item.variations || [])
-                        .map((v) => v.color)
-                        .filter(Boolean) as string[]),
-                    ]),
-                  )}
-                  size={item.size}
-                  sizes={Array.from(
-                    new Set([
-                      ...(item.size ? [item.size] : []),
-                      ...((item.variations || [])
-                        .map((v) => v.size)
-                        .filter(Boolean) as string[]),
-                    ]),
-                  )}
-                  navigateTo=""
-                  status={item.status}
-                  variations={item.variations}
-                  actionButton={
-                    <button
-                      className={styles.actionBtn}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleProductCardDiscount(item);
-                      }}
-                    >
-                      Dar baixa
-                    </button>
-                  }
-                />
-              ))
+              pagedStockItems.map((item) => {
+                const { product, entry } = item;
+                const variation = entry.variation;
+                const cardColor = variation?.color ?? product.color;
+                const cardSize = variation?.size ?? product.size;
+                const variationHasOwnPrice =
+                  entry.kind === "variation" && variation?.price != null;
+
+                return (
+                  <EntityCard
+                    key={`${product.id}-${entry.id}`}
+                    id={entry.id}
+                    type="product"
+                    name={product.name}
+                    description={product.description}
+                    category={product.category}
+                    price={getStockEntryPrice(product, entry)}
+                    promoPrice={
+                      variationHasOwnPrice ? undefined : product.promoPrice
+                    }
+                    imageUrl={getStockCardImages(product, entry)}
+                    stock={entry.stock}
+                    lowStock={entry.lowStock}
+                    available={
+                      product.status === ProductStatusEnum.ACTIVED &&
+                      entry.stock > 0
+                    }
+                    color={cardColor}
+                    colors={cardColor ? [cardColor] : undefined}
+                    size={cardSize}
+                    sizes={cardSize ? [cardSize] : undefined}
+                    navigateTo=""
+                    status={product.status}
+                    actionButton={
+                      <button
+                        className={styles.actionBtn}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStockCardDiscount(product, entry);
+                        }}
+                      >
+                        Dar baixa
+                      </button>
+                    }
+                  />
+                );
+              })
             )}
           </div>
           <div className={styles.tableFooter}>
             <div className={styles.tableSummary}>
-              Mostrando {pagedStockItems.length} de {totalResults} produtos
+              Mostrando {pagedStockItems.length} de {totalResults} itens
             </div>
             <div className={styles.pagination}>
               <button

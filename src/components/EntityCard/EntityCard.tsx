@@ -437,6 +437,13 @@ export default function EntityCard(props: Props) {
     ? variations.filter((variation) => variation.isActive !== false)
     : [];
   const hasVariations = Array.isArray(variations) && variations.length > 0;
+  const availableVariationColors = Array.from(
+    new Set(
+      activeVariations
+        .map((variation) => variation.color)
+        .filter((color): color is string => Boolean(color)),
+    ),
+  );
   const isSoldOut = hasVariations
     ? activeVariations.length === 0 ||
       activeVariations.every((variation) => Number(variation.stock ?? 0) <= 0)
@@ -595,35 +602,37 @@ export default function EntityCard(props: Props) {
         </div>
 
         <div className={styles.productMeta}>
-          {props.promoPrice && Number(props.promoPrice) > 0 ? (
-            <>
+          {!hasVariations && (
+            props.promoPrice && Number(props.promoPrice) > 0 ? (
+              <>
+                <div className={styles.metaItem}>
+                  <FiDollarSign className={styles.metaIcon} />
+                  <span className={styles.originalPrice}>
+                    {currencyBRL(Number(props.price))}
+                  </span>
+                </div>
+                <div className={`${styles.metaItem} ${styles.promoItem}`}>
+                  <FiDollarSign className={styles.metaIcon} />
+                  <span className={styles.promoPrice}>
+                    {currencyBRL(Number(props.promoPrice))}
+                  </span>
+                  <span className={styles.discount}>
+                    -
+                    {Math.round(
+                      ((Number(props.price) - Number(props.promoPrice)) /
+                        Number(props.price)) *
+                        100,
+                    )}
+                    %
+                  </span>
+                </div>
+              </>
+            ) : (
               <div className={styles.metaItem}>
                 <FiDollarSign className={styles.metaIcon} />
-                <span className={styles.originalPrice}>
-                  {currencyBRL(Number(props.price))}
-                </span>
+                {currencyBRL(Number(props.price))}
               </div>
-              <div className={`${styles.metaItem} ${styles.promoItem}`}>
-                <FiDollarSign className={styles.metaIcon} />
-                <span className={styles.promoPrice}>
-                  {currencyBRL(Number(props.promoPrice))}
-                </span>
-                <span className={styles.discount}>
-                  -
-                  {Math.round(
-                    ((Number(props.price) - Number(props.promoPrice)) /
-                      Number(props.price)) *
-                      100,
-                  )}
-                  %
-                </span>
-              </div>
-            </>
-          ) : (
-            <div className={styles.metaItem}>
-              <FiDollarSign className={styles.metaIcon} />
-              {currencyBRL(Number(props.price))}
-            </div>
+            )
           )}
           {props.lowStock > 0 && (
             <div className={styles.metaItem}>
@@ -633,69 +642,87 @@ export default function EntityCard(props: Props) {
           )}
 
           {variations.length > 0 ? (
-            <div className={styles.variationBlock}>
-              <button
-                type="button"
-                className={styles.variationToggle}
-                tabIndex={-1}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowVariations((v) => !v);
-                }}
-                aria-expanded={showVariations}
-                aria-controls="variation-list"
-              >
-                <FiLayers className={styles.variationToggleIcon} />
-                <span className={styles.variationToggleLabel}>Variações</span>
-                <FiChevronDown
-                  className={styles.variationChevron}
-                  style={{
-                    transform: showVariations ? "rotate(180deg)" : undefined,
-                  }}
-                />
-              </button>
-              {showVariations && (
-                <div className={styles.variationList} id="variation-list">
-                  {variations.map((v, i) => (
-                    <div className={styles.variationCard} key={v.id || i}>
-                      <div className={styles.variationCardRow}>
-                        <span className={styles.variationLabel}>
-                          Tamanho:{" "}
-                          <span className={styles.variationValue}>
-                            {v.size || "-"}
-                          </span>
-                        </span>
-                        <span className={styles.variationColors}>
-                          {(v.color ? [v.color] : []).map(
-                            (color: string, idx: number) => (
-                            <span
-                              key={idx}
-                              className={styles.variationColorDot}
-                              style={{ background: color || "#ccc" }}
-                              title={color || ""}
-                            />
-                            ),
-                          )}
-                        </span>
-                      </div>
-                      <div className={styles.variationCardRow}>
-                        <span className={styles.variationStock}>
-                          Estoque:{" "}
-                          <span className={styles.variationValue}>
-                            {v.stock ?? 0}
-                          </span>
-                        </span>
-                        {v.price && Number(v.price) !== Number(props.price) && (
-                          <span className={styles.variationPrice}>
-                            {currencyBRL(Number(v.price))}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+            <>
+              {availableVariationColors.length > 0 && (
+                <div className={styles.metaItem}>
+                  <FiBox className={styles.metaIcon} />
+                  <span>Cores disponíveis:</span>
+                  <span className={styles.variationColors}>
+                    {availableVariationColors.map((color) => (
+                      <span
+                        key={color}
+                        className={styles.variationColorDot}
+                        style={{ background: color || "#ccc" }}
+                        title={color}
+                      />
+                    ))}
+                  </span>
                 </div>
               )}
-            </div>
+              <div className={styles.variationBlock}>
+                <button
+                  type="button"
+                  className={styles.variationToggle}
+                  tabIndex={-1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowVariations((v) => !v);
+                  }}
+                  aria-expanded={showVariations}
+                  aria-controls="variation-list"
+                >
+                  <FiLayers className={styles.variationToggleIcon} />
+                  <span className={styles.variationToggleLabel}>Variações</span>
+                  <FiChevronDown
+                    className={styles.variationChevron}
+                    style={{
+                      transform: showVariations ? "rotate(180deg)" : undefined,
+                    }}
+                  />
+                </button>
+                {showVariations && (
+                  <div className={styles.variationList} id="variation-list">
+                    {variations.map((v, i) => (
+                      <div className={styles.variationCard} key={v.id || i}>
+                        <div className={styles.variationCardRow}>
+                          <span className={styles.variationLabel}>
+                            Tamanho:{" "}
+                            <span className={styles.variationValue}>
+                              {v.size || "-"}
+                            </span>
+                          </span>
+                          <span className={styles.variationColors}>
+                            {(v.color ? [v.color] : []).map(
+                              (color: string, idx: number) => (
+                              <span
+                                key={idx}
+                                className={styles.variationColorDot}
+                                style={{ background: color || "#ccc" }}
+                                title={color || ""}
+                              />
+                              ),
+                            )}
+                          </span>
+                        </div>
+                        <div className={styles.variationCardRow}>
+                          <span className={styles.variationStock}>
+                            Estoque:{" "}
+                            <span className={styles.variationValue}>
+                              {v.stock ?? 0}
+                            </span>
+                          </span>
+                          {v.price && Number(v.price) !== Number(props.price) && (
+                            <span className={styles.variationPrice}>
+                              {currencyBRL(Number(v.price))}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <>
               <div className={styles.metaItem}>

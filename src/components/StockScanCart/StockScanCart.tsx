@@ -4,6 +4,7 @@ import {
   Barcode,
   Calendar,
   ChevronDown,
+  ChevronUp,
   CreditCard,
   Minus,
   Package,
@@ -37,6 +38,7 @@ export type StockScanOperationData = {
   paymentMethod: string;
   responsibleName: string;
   observation: string;
+  discountPercent?: number;
   creditCustomerId?: string;
   installment?: number;
 };
@@ -54,6 +56,9 @@ type StockScanCartProps = {
 const REASONS = ["Venda", "Consumo interno", "Devolução", "Perda"];
 const PAYMENT_METHODS = ["PIX", "Dinheiro", "Crédito", "Débito", "Crediario"];
 const INSTALLMENT_LIST = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const DISCOUNT_STEP_PERCENT = 1;
+const INITIAL_DISCOUNT_PERCENT = 5;
+const MAX_DISCOUNT_PERCENT = 100;
 
 const formatCurrency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -109,6 +114,9 @@ export function StockScanCart({
   });
   const [error, setError] = useState("");
   const [step, setStep] = useState<"products" | "details">("products");
+  const [discountPercent, setDiscountPercent] = useState(
+    INITIAL_DISCOUNT_PERCENT,
+  );
   const [installmentOpen, setInstallmentOpen] = useState(false);
   const [creditLoading, setCreditLoading] = useState(false);
   const [creditSaving, setCreditSaving] = useState(false);
@@ -184,6 +192,7 @@ export function StockScanCart({
       setCreditModalMode("list");
       setSelectedCreditCustomerId(null);
       setInstallmentOpen(false);
+      setDiscountPercent(INITIAL_DISCOUNT_PERCENT);
       resetCreditForm();
     }
   }, [isOpen]);
@@ -203,10 +212,12 @@ export function StockScanCart({
   if (!isOpen) return null;
 
   const totalUnits = items.reduce((total, item) => total + item.quantity, 0);
-  const totalValue = items.reduce(
+  const subtotalValue = items.reduce(
     (total, item) => total + item.unitPrice * item.quantity,
     0,
   );
+  const discountValue = subtotalValue * (discountPercent / 100);
+  const totalValue = Math.max(subtotalValue - discountValue, 0);
   const installment = form.installment ?? 1;
   const installmentValue = totalValue / installment;
   const selectedCreditCustomer = creditCustomers.find(
@@ -313,6 +324,7 @@ export function StockScanCart({
       ...form,
       responsibleName: operatorName,
       observation: form.observation.trim(),
+      discountPercent,
       creditCustomerId:
         form.paymentMethod === "Crediario"
           ? String(selectedCreditCustomerId)
@@ -452,7 +464,7 @@ export function StockScanCart({
                 {items.length} produto{items.length === 1 ? "" : "s"} •{" "}
                 {totalUnits} unidade{totalUnits === 1 ? "" : "s"}
               </span>
-              <strong>{formatCurrency(totalValue)}</strong>
+              <strong>{formatCurrency(subtotalValue)}</strong>
             </div>
             <button
               className={styles.confirmButton}
@@ -472,7 +484,47 @@ export function StockScanCart({
           <div className={styles.details}>
             <div className={styles.reviewBox}>
               <span>Resumo da baixa</span>
-              <strong>{formatCurrency(totalValue)}</strong>
+              <div className={styles.reviewAmountRow}>
+                <div className={styles.reviewAmount}>
+                  {discountPercent > 0 && (
+                    <small>{formatCurrency(subtotalValue)}</small>
+                  )}
+                  <strong>{formatCurrency(totalValue)}</strong>
+                </div>
+
+                <div className={styles.discountControl}>
+                  <button
+                    type="button"
+                    className={styles.discountIncrease}
+                    onClick={() =>
+                      setDiscountPercent((current) =>
+                        Math.min(
+                          current + DISCOUNT_STEP_PERCENT,
+                          MAX_DISCOUNT_PERCENT,
+                        ),
+                      )
+                    }
+                    disabled={discountPercent >= MAX_DISCOUNT_PERCENT}
+                    aria-label="Aumentar desconto"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                  <strong>{discountPercent}%</strong>
+                  <button
+                    type="button"
+                    className={styles.discountDecrease}
+                    onClick={() =>
+                      setDiscountPercent((current) =>
+                        Math.max(current - DISCOUNT_STEP_PERCENT, 0),
+                      )
+                    }
+                    disabled={discountPercent <= 0}
+                    aria-label="Diminuir desconto"
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+              </div>
               <small>
                 {items.length} produto{items.length === 1 ? "" : "s"} •{" "}
                 {totalUnits} unidade{totalUnits === 1 ? "" : "s"}

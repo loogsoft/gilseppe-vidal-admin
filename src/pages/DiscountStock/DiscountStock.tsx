@@ -398,6 +398,11 @@ export function DiscountStock() {
 
     try {
       setScanCartLoading(true);
+      const discountPercent = Math.min(
+        Math.max(Number(data.discountPercent ?? 0), 0),
+        100,
+      );
+      const discountMultiplier = 1 - discountPercent / 100;
       await StockMovementService.create({
         creditCustomerId:
           data.paymentMethod === "Crediario"
@@ -412,7 +417,11 @@ export function DiscountStock() {
             item.stockItemType === "variation" ? item.stockItemId : undefined,
           quantity: item.quantity,
           productName: item.product.name,
-          price: String(Number((item.unitPrice * item.quantity).toFixed(2))),
+          price: String(
+            Number(
+              (item.unitPrice * item.quantity * discountMultiplier).toFixed(2),
+            ),
+          ),
         })),
         type: "OUT",
         reason: data.reason,

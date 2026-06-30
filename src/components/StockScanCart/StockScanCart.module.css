@@ -326,6 +326,105 @@
   font-size: 18px;
 }
 
+.reviewAmountRow {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reviewAmount {
+  min-width: 0;
+}
+
+.reviewAmount small {
+  margin-top: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: line-through;
+}
+
+.reviewAmount strong {
+  margin-top: 0;
+}
+
+.discountControl {
+  width: 72px;
+  flex: 0 0 72px;
+  display: grid;
+  grid-template-rows: 30px 34px 30px;
+  justify-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--border-default);
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.discountControl strong {
+  width: 100%;
+  min-height: 34px;
+  margin-top: 0;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.discountControl button {
+  width: 100%;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.discountControl button:hover:not(:disabled) {
+  border-color: currentColor;
+}
+
+.discountControl button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.discountIncrease {
+  background: rgba(22, 163, 74, 0.1);
+  color: #15803d;
+}
+
+.discountIncrease:hover:not(:disabled) {
+  background: rgba(22, 163, 74, 0.16);
+}
+
+.discountDecrease {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+
+.discountDecrease:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.16);
+}
+
 .reviewBox small {
   margin-top: 3px;
   color: var(--text-secondary);

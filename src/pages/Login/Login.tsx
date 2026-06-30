@@ -208,7 +208,7 @@ export default function Login() {
   const { theme, toggleTheme } = useTheme();
   const supportUrl = SUPPORT_URL;
   const [email, setEmail] = useState("admin.loogsystem@gmail.com");
-  const [password, setPassword] = useState("Loogsystem@");
+  const [password, setPassword] = useState("Loogsystem@1");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [showPass, setShowPass] = useState(false);

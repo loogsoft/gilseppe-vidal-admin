@@ -14,7 +14,7 @@ export const CompanyService = {
   create: async (dto: CompanyRequestDto) => {
     const response = await api.post("/company", dto);
     return response.data;
-  },
+  }, 
 
   update: async (companyId: string, dto: Partial<CompanyRequestDto>) => {
     const response = await api.patch<CompanyResponseDto>(

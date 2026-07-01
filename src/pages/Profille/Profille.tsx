@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  Crown,
   Eye,
   EyeOff,
   Fingerprint,
@@ -27,6 +28,11 @@ import { UserTypeEnum } from "../../dtos/enums/user-type.enum";
 import { CompanyService } from "../../service/Company.service";
 import { UserService } from "../../service/User.service";
 import styles from "./Profille.module.css";
+import { InscriptionTypeStatusEnum } from "../../dtos/enums/inscription-type-status.enum";
+import {
+  PlanStatusBubble,
+  type PlanStatusType,
+} from "../../components/PlanStatusBubble/PlanStatusBubble";
 
 type PasswordFeedback = {
   type: "success" | "error";
@@ -126,11 +132,15 @@ export function Profille() {
   const { user } = useAuth();
   const authenticatedUserId = user?.id ?? "";
   const [companyId, setCompanyId] = useState("");
-  const [company, setCompany] =
-    useState<CompanySettings>(EMPTY_COMPANY);
+  const [company, setCompany] = useState<CompanySettings>(EMPTY_COMPANY);
+  const [typeInscription, setTypeInscription] =
+    useState<InscriptionTypeStatusEnum>(InscriptionTypeStatusEnum.CUSTOMER);
   const [savedCompany, setSavedCompany] =
     useState<CompanySettings>(EMPTY_COMPANY);
   const [memberDate, setMemberDate] = useState("");
+  const [trialStartDate, setTrialStartDate] = useState<Date | string | null>(
+    null,
+  );
   const [userStatus, setUserStatus] = useState<UserTypeEnum | null>(
     user?.userType ?? null,
   );
@@ -163,6 +173,7 @@ export function Profille() {
 
         setCompanyId(resolvedCompanyId);
         setUserStatus(profile.userType);
+        setTrialStartDate(profile.dataCadastro ?? null);
         setMemberDate(
           profile.dataCadastro
             ? new Date(profile.dataCadastro).toLocaleDateString("pt-BR", {
@@ -178,6 +189,8 @@ export function Profille() {
           const normalizedCompany = normalizeCompany(companyData);
           setCompany(normalizedCompany);
           setSavedCompany(normalizedCompany);
+          setTypeInscription(companyData.inscriptionType);
+          setTrialStartDate((current) => current ?? companyData.date ?? null);
         }
       } catch (error: unknown) {
         toast.error(
@@ -196,6 +209,25 @@ export function Profille() {
 
   const status =
     userStatus === UserTypeEnum.ADMIN ? "Administrador" : "Vendedor";
+
+  const isTesterPlan = typeInscription === InscriptionTypeStatusEnum.TESTER;
+  const isCustomerPlan =
+    typeInscription === InscriptionTypeStatusEnum.CUSTOMER;
+  const planType: PlanStatusType | null = isCustomerPlan
+    ? "customer"
+    : isTesterPlan
+      ? "tester"
+      : null;
+  const inscriptionStatus =
+    typeInscription === InscriptionTypeStatusEnum.CUSTOMER
+      ? "Cliente"
+      : "Testando";
+  const inscriptionStatusClass =
+    isTesterPlan
+      ? styles.roleBadgeInscriptionTester
+      : styles.roleBadgeInscriptionCustomer;
+  const InscriptionIcon = isCustomerPlan ? Crown : BadgeCheck;
+
   const companyColorIsValid = HEX_COLOR_REGEX.test(company.color);
   const companyChanged = useMemo(
     () =>
@@ -293,9 +325,7 @@ export function Profille() {
     }
   };
 
-  const handlePasswordChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     setPasswordForm((current) => ({ ...current, [name]: value }));
     setPasswordFeedback(null);
@@ -303,9 +333,7 @@ export function Profille() {
 
   const passwordHasMinimumLength = passwordForm.newPassword.length >= 8;
   const passwordHasNumber = /\d/.test(passwordForm.newPassword);
-  const passwordHasSymbol = /[^A-Za-z0-9\s]/.test(
-    passwordForm.newPassword,
-  );
+  const passwordHasSymbol = /[^A-Za-z0-9\s]/.test(passwordForm.newPassword);
   const passwordIsStrong =
     passwordHasMinimumLength && passwordHasNumber && passwordHasSymbol;
   const passwordsMatch =
@@ -323,9 +351,7 @@ export function Profille() {
     passwordIsDifferent &&
     !passwordLoading;
 
-  const handlePasswordSubmit = async (
-    event: FormEvent<HTMLFormElement>,
-  ) => {
+  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!authenticatedUserId || !canUpdatePassword) return;
 
@@ -412,6 +438,12 @@ export function Profille() {
                 <BadgeCheck size={13} />
                 {status}
               </span>
+              <span
+                className={`${styles.roleBadgeInscription} ${inscriptionStatusClass}`}
+              >
+                <InscriptionIcon size={13} />
+                {inscriptionStatus}
+              </span>
             </div>
             <div className={styles.profileMeta}>
               <span>
@@ -428,6 +460,13 @@ export function Profille() {
               </span>
             </div>
           </div>
+          {planType && (
+            <PlanStatusBubble
+              companyName={displayName}
+              planType={planType}
+              trialStartDate={trialStartDate}
+            />
+          )}
           <div className={styles.brandPreview}>
             <span
               className={styles.brandColor}
@@ -445,10 +484,7 @@ export function Profille() {
         </section>
 
         <div className={styles.settingsGrid}>
-          <form
-            className={styles.settingsCard}
-            onSubmit={handleCompanySubmit}
-          >
+          <form className={styles.settingsCard} onSubmit={handleCompanySubmit}>
             <div className={styles.cardHeader}>
               <span className={styles.cardIcon}>
                 <Building2 size={20} />
@@ -673,9 +709,7 @@ export function Profille() {
                 <button
                   type="button"
                   className={styles.passwordToggle}
-                  onClick={() =>
-                    setShowCurrentPassword((current) => !current)
-                  }
+                  onClick={() => setShowCurrentPassword((current) => !current)}
                   aria-label={
                     showCurrentPassword
                       ? "Ocultar senha atual"
@@ -719,11 +753,7 @@ export function Profille() {
                       : "Mostrar nova senha"
                   }
                 >
-                  {showNewPassword ? (
-                    <EyeOff size={18} />
-                  ) : (
-                    <Eye size={18} />
-                  )}
+                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </label>
@@ -750,9 +780,7 @@ export function Profille() {
                 <button
                   type="button"
                   className={styles.passwordToggle}
-                  onClick={() =>
-                    setShowConfirmPassword((current) => !current)
-                  }
+                  onClick={() => setShowConfirmPassword((current) => !current)}
                   aria-label={
                     showConfirmPassword
                       ? "Ocultar confirmação"
@@ -788,8 +816,7 @@ export function Profille() {
                     passwordHasMinimumLength ? styles.requirementMet : ""
                   }
                 >
-                  <Check size={13} />
-                  8 caracteres
+                  <Check size={13} />8 caracteres
                 </span>
                 <span
                   className={passwordHasNumber ? styles.requirementMet : ""}

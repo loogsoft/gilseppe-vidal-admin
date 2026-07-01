@@ -1,0 +1,255 @@
+.planStatusBubble {
+  --plan-accent: #8b5cf6;
+  --plan-accent-strong: #7c3aed;
+  --plan-secondary: #f59e0b;
+  --plan-shadow: rgba(76, 29, 149, 0.12);
+  width: min(100%, 292px);
+  padding: 12px;
+  border: 1px solid
+    color-mix(in srgb, var(--plan-accent) 24%, var(--border-default));
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--plan-accent) 13%, transparent),
+      color-mix(in srgb, var(--plan-secondary) 8%, transparent)
+    ),
+    var(--surface);
+  box-shadow:
+    0 18px 34px var(--plan-shadow),
+    0 4px 12px rgba(15, 23, 42, 0.08);
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-areas:
+    "icon text"
+    "button button";
+  align-items: start;
+  gap: 9px 10px;
+  flex: 0 0 292px;
+  position: relative;
+  transform: translateY(-4px);
+  animation: planStatusFloat 4s ease-in-out infinite;
+}
+
+.planStatusBubble::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-left: 1px solid
+    color-mix(in srgb, var(--plan-accent) 24%, var(--border-default));
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--plan-accent) 24%, var(--border-default));
+  background: var(--surface);
+  position: absolute;
+  left: -8px;
+  top: 32px;
+  transform: rotate(45deg);
+}
+
+.planStatusBubbleCustomer {
+  --plan-accent: #f59e0b;
+  --plan-accent-strong: #d97706;
+  --plan-secondary: #facc15;
+  --plan-shadow: rgba(217, 119, 6, 0.14);
+}
+
+.planStatusBubbleFloating {
+  width: 300px;
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  z-index: 80;
+}
+
+.planStatusBubbleFloating::before {
+  left: auto;
+  right: 22px;
+  top: -8px;
+  border: 0;
+  border-left: 1px solid
+    color-mix(in srgb, var(--plan-accent) 24%, var(--border-default));
+  border-top: 1px solid
+    color-mix(in srgb, var(--plan-accent) 24%, var(--border-default));
+}
+
+.planStatusIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    var(--plan-accent),
+    var(--plan-secondary)
+  );
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  grid-area: icon;
+  box-shadow: 0 10px 18px
+    color-mix(in srgb, var(--plan-accent) 24%, transparent);
+}
+
+.planStatusText {
+  min-width: 0;
+  grid-area: text;
+}
+
+.planStatusText span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--plan-accent-strong);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.planStatusText strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.planStatusText p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.planStatusDue {
+  margin-top: 8px;
+  padding: 8px 9px;
+  border: 1px solid
+    color-mix(in srgb, var(--plan-accent) 18%, var(--border-default));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--plan-accent) 8%, var(--surface));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.planStatusDue span {
+  margin: 0;
+  color: var(--plan-accent-strong);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.planStatusDue strong {
+  color: var(--text-primary);
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.planStatusButton {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--plan-accent-strong);
+  border-radius: 11px;
+  background: var(--plan-accent-strong);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  grid-area: button;
+  font-size: 9px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 10px 20px
+    color-mix(in srgb, var(--plan-accent-strong) 20%, transparent);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.planStatusButton:hover {
+  background: color-mix(in srgb, var(--plan-accent-strong) 90%, #111827);
+  transform: translateY(-1px);
+  box-shadow: 0 13px 24px
+    color-mix(in srgb, var(--plan-accent-strong) 28%, transparent);
+}
+
+@keyframes planStatusFloat {
+  0%,
+  100% {
+    transform: translateY(-4px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+:global([data-theme="dark"]) .planStatusBubble {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--plan-accent) 22%, transparent),
+      color-mix(in srgb, var(--plan-secondary) 11%, transparent)
+    ),
+    var(--surface);
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.28),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+:global([data-theme="dark"]) .planStatusBubble::before {
+  background: var(--surface);
+}
+
+:global([data-theme="dark"]) .planStatusBubbleTester .planStatusText span {
+  color: #c4b5fd;
+}
+
+:global([data-theme="dark"]) .planStatusBubbleCustomer .planStatusText span {
+  color: #fde68a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planStatusBubble {
+    animation: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .planStatusBubble {
+    width: 100%;
+    flex: 1 0 100%;
+  }
+
+  .planStatusBubble::before {
+    left: 29px;
+    top: -8px;
+    border: 0;
+    border-left: 1px solid
+      color-mix(in srgb, var(--plan-accent) 24%, var(--border-default));
+    border-top: 1px solid
+      color-mix(in srgb, var(--plan-accent) 24%, var(--border-default));
+  }
+
+  .planStatusBubbleFloating {
+    width: auto;
+    position: fixed;
+    top: 82px;
+    right: 14px;
+    left: 14px;
+  }
+
+  .planStatusBubbleFloating::before {
+    left: auto;
+    right: 106px;
+  }
+}

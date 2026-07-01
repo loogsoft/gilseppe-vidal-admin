@@ -23,6 +23,11 @@
   gap: 18px;
 }
 
+.planMenu {
+  position: relative;
+  z-index: 35;
+}
+
 .subscriptionCard {
   min-height: 48px;
   display: inline-flex;
@@ -165,6 +170,68 @@
   background: var(--hover-bg);
   transform: scale(1.05);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.iconButton.planButtonTrial {
+  border-color: color-mix(in srgb, #8b5cf6 52%, var(--border-default));
+  background: linear-gradient(135deg, #8b5cf6, #f59e0b);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(124, 58, 237, 0.24);
+}
+
+.iconButton.planButtonPremium {
+  border-color: color-mix(in srgb, #f59e0b 62%, var(--border-default));
+  background: linear-gradient(135deg, #f59e0b, #facc15);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(217, 119, 6, 0.24);
+}
+
+.iconButton.planButtonOpen {
+  transform: scale(1.05);
+}
+
+.iconButton.planButtonTrial:hover,
+.iconButton.planButtonTrial.planButtonOpen {
+  background: linear-gradient(135deg, #7c3aed, #f59e0b);
+  box-shadow: 0 13px 26px rgba(124, 58, 237, 0.32);
+}
+
+.iconButton.planButtonPremium:hover,
+.iconButton.planButtonPremium.planButtonOpen {
+  background: linear-gradient(135deg, #d97706, #facc15);
+  box-shadow: 0 13px 26px rgba(217, 119, 6, 0.32);
+}
+
+.iconButton.planButtonTrial svg,
+.iconButton.planButtonPremium svg {
+  animation: planCrownMove 2.3s ease-in-out infinite;
+  transform-origin: 50% 58%;
+}
+
+@keyframes planCrownMove {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+
+  25% {
+    transform: translateY(-1px) rotate(-7deg) scale(1.04);
+  }
+
+  50% {
+    transform: translateY(1px) rotate(6deg) scale(1.02);
+  }
+
+  75% {
+    transform: translateY(-1px) rotate(-4deg) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconButton.planButtonTrial svg,
+  .iconButton.planButtonPremium svg {
+    animation: none;
+  }
 }
 
 .avatar {

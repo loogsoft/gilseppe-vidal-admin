@@ -3,16 +3,71 @@ import { FiBell, FiMoon, FiSun } from "react-icons/fi";
 import { useTheme } from "../../contexts/useTheme";
 import { useAuth } from "../../contexts/useAuth";
 import { useMessageContext } from "../../contexts/useMessageContext";
-import { CalendarDays, CheckCircle2, Headset, XCircle } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  Crown,
+  Headset,
+  XCircle,
+} from "lucide-react";
 import { SubscriptionStatusEnum } from "../../dtos/enums/subscription-status.num";
 import { useEffect, useState } from "react";
 import { CompanyService } from "../../service/Company.service";
 import type { CompanyResponseDto } from "../../dtos/response/company-response.dto";
+import { InscriptionTypeStatusEnum } from "../../dtos/enums/inscription-type-status.enum";
+import {
+  PlanStatusBubble,
+  type PlanStatusType,
+} from "../PlanStatusBubble/PlanStatusBubble";
 
 type HeaderProps = {
   title: string;
   isMessageModalOpen: (value: boolean) => void;
 };
+
+type PlanStatusMenuProps = {
+  companyName: string;
+  planType: PlanStatusType;
+  trialStartDate?: Date | string;
+};
+
+function PlanStatusMenu({
+  companyName,
+  planType,
+  trialStartDate,
+}: PlanStatusMenuProps) {
+  const [showPlanBubble, setShowPlanBubble] = useState(false);
+
+  return (
+    <div className={styles.planMenu}>
+      <button
+        className={`${styles.iconButton} ${
+          planType === "customer"
+            ? styles.planButtonPremium
+            : styles.planButtonTrial
+        } ${showPlanBubble ? styles.planButtonOpen : ""}`}
+        type="button"
+        aria-label={
+          planType === "customer"
+            ? "Mostrar plano premium"
+            : "Mostrar plano gratuito"
+        }
+        aria-expanded={showPlanBubble}
+        onClick={() => setShowPlanBubble((current) => !current)}
+      >
+        <Crown size={18} />
+      </button>
+      {showPlanBubble && (
+        <PlanStatusBubble
+          companyName={companyName}
+          planType={planType}
+          trialStartDate={trialStartDate}
+          variant="floating"
+        />
+      )}
+    </div>
+  );
+}
 
 export function Header({ title, isMessageModalOpen }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
@@ -75,6 +130,17 @@ export function Header({ title, isMessageModalOpen }: HeaderProps) {
 
   const paymentDueDate = formatPaymentDueDate(company?.paymentDueDay);
   const status = getStatus(company?.subscriptionStatus);
+  const isTesterPlan =
+    company?.inscriptionType === InscriptionTypeStatusEnum.TESTER;
+  const isCustomerPlan =
+    company?.inscriptionType === InscriptionTypeStatusEnum.CUSTOMER;
+  const planType: PlanStatusType | null = isCustomerPlan
+    ? "customer"
+    : isTesterPlan
+      ? "tester"
+      : null;
+  const companyName =
+    company?.companyName || user?.name || user?.email?.split("@")[0] || "Usuário";
   const StatusIcon = company
     ? status.active
       ? CheckCircle2
@@ -126,6 +192,14 @@ export function Header({ title, isMessageModalOpen }: HeaderProps) {
       <h1 className={styles.title}>{title || ""}</h1>
 
       <div className={styles.right}>
+        {planType && (
+          <PlanStatusMenu
+            companyName={companyName}
+            planType={planType}
+            trialStartDate={company?.date}
+          />
+        )}
+
         <div
           className={paymentCardClass}
           aria-label={`Assinatura vence em ${paymentDueDate}. Status ${status.name}`}

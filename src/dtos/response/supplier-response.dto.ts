@@ -10,6 +10,6 @@ export interface SupplierResponseDto {
   status?: SupplierStatus;
   imageUrl?: string[] | string;
   avatarColor?: string;
-  openDiscountStock?: number;
-  images?: { url: string }[];
+  openOrders?: number;
+  images?: { id?: string; url: string; publicId?: string }[];
 }

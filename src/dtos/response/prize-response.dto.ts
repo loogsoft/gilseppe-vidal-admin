@@ -1,4 +1,5 @@
 export interface PrizeResponseDto {
+  id: string;
   name: string;
   description?: string;
   imageUrl?: string;

@@ -9,5 +9,4 @@ export interface CreditCustomerRequestDto {
   city: string;
   state: string;
   zipCode: string;
-  totalAmounts?: number;
 }

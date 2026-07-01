@@ -91,8 +91,8 @@ function cpfCnpjMask(value: string): string {
 function normalizeCompany(data: {
   companyName?: string;
   companyEmail?: string;
-  companyPhone?: number | string;
-  companyCpfCnpj?: number | string;
+  companyPhone?: string;
+  companyCpfCnpj?: string;
   color?: string;
   imageUrl?: string | null;
 }): CompanySettings {
@@ -282,8 +282,8 @@ export function Profille() {
       const updatedCompany = await CompanyService.update(companyId, {
         companyName: company.name.trim(),
         companyEmail: company.email.trim(),
-        companyPhone: Number(company.phone.replace(/\D/g, "")) || 0,
-        companyCpfCnpj: Number(company.document.replace(/\D/g, "")) || 0,
+        companyPhone: company.phone.replace(/\D/g, ""),
+        companyCpfCnpj: company.document.replace(/\D/g, ""),
         color: company.color,
         imageUrl,
       });

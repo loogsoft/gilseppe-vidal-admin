@@ -5,11 +5,11 @@ export interface CompanyResponseDto {
   id: string;
   companyName: string;
   companyEmail: string;
-  companyPhone: number;
+  companyPhone: string;
   paymentDueDay: Date;
   subscriptionStatus: SubscriptionStatusEnum;
   inscriptionType: InscriptionTypeStatusEnum;
-  companyCpfCnpj: number;
+  companyCpfCnpj: string;
   color: string;
   imageUrl?: string | null;
   date: Date;

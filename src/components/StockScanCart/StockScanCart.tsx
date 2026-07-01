@@ -289,7 +289,6 @@ export function StockScanCart({
         city: creditForm.city.trim(),
         state: creditForm.state.trim(),
         zipCode: creditForm.zipCode.replace(/\D/g, ""),
-        totalAmounts: 0,
       });
       await fetchCreditCustomers();
       setSelectedCreditCustomerId(String(createdCustomer.id));

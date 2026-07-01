@@ -1,5 +1,5 @@
 export interface MessageResponseDto {
-  id: number;
+  id: string;
   productId: string;
   name: string;
   url: string;

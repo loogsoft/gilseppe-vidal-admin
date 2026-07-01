@@ -2,7 +2,7 @@ import type { CreditSaleInstallmentStatusEnum } from "../enums/credit-sale-insta
 import type { CreditSaleResponseDto } from "./credit-sale-response.dto";
 
 export interface CreditSaleInstallmentResponseDto {
-  id: string | number;
+  id: string;
   installmentNumber: number;
   creditSale?: CreditSaleResponseDto;
   amount: number | string;

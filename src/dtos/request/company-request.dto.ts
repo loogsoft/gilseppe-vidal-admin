@@ -1,8 +1,8 @@
 export interface CompanyRequestDto {
   companyName: string;
   companyEmail: string;
-  companyPhone: number;
-  companyCpfCnpj: number;
+  companyPhone: string;
+  companyCpfCnpj: string;
   color: string;
   imageUrl?: string;
 }

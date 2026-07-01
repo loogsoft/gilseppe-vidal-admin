@@ -89,7 +89,7 @@ const mapSupplierCard = (
     avatarColor: String(
       item.avatarColor ?? AVATAR_COLORS[index % AVATAR_COLORS.length],
     ),
-    openDiscountStock: Number(item.openDiscountStock ?? 0),
+    openDiscountStock: Number(item.openOrders ?? 0),
     imageUrl: Array.isArray(item.images) ? item.images : [],
   };
 };

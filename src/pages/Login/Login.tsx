@@ -263,8 +263,8 @@ export default function Login() {
       const payloadCompany = {
         companyName,
         companyEmail,
-        companyPhone: Number(companyPhone.replace(/\D/g, "")),
-        companyCpfCnpj: Number(companyCpfCnpj.replace(/\D/g, "")),
+        companyPhone: companyPhone.replace(/\D/g, ""),
+        companyCpfCnpj: companyCpfCnpj.replace(/\D/g, ""),
         color,
         imageUrl,
       };

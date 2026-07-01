@@ -37,13 +37,13 @@ export function MessageModal({
 }: MessageModalProps) {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<MessageResponseDto[]>([]);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [clearing, setClearing] = useState(false);
   const { decrementMessageCount, clearMessageCount } = useMessageContext();
-  const handleDelete = async (e: React.MouseEvent, id: number) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    await MessageService.remove(String(id));
+    await MessageService.remove(id);
     setMessages((prev) => prev.filter((m) => m.id !== id));
     decrementMessageCount();
   };
@@ -52,7 +52,7 @@ export function MessageModal({
     if (clearing) return;
     setClearing(true);
     await Promise.all(
-      messages.map((m) => MessageService.remove(String(m.id)).catch(() => {})),
+      messages.map((m) => MessageService.remove(m.id).catch(() => {})),
     );
     setMessages([]);
     clearMessageCount();

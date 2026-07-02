@@ -207,8 +207,8 @@ function createPaymentBlockModal(
 export default function Login() {
   const { theme, toggleTheme } = useTheme();
   const supportUrl = SUPPORT_URL;
-  const [email, setEmail] = useState("admin.loogsystem@gmail.com");
-  const [password, setPassword] = useState("Loogsystem@1");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [showPass, setShowPass] = useState(false);
